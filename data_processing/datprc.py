@@ -13,6 +13,21 @@ def auth_string(auth_list):
         app = "".join(auth_list)
     return app
 
+def parse_abstract(entry):
+    """
+    This function handles the abstract parsing.
+
+    You can extend it as much as you want without making the main chunk of the code
+    harder to read.
+    """
+    abstract = entry.description
+    abstract = abstract.lstrip("<p>")\
+                       .rstrip("</p>")\
+                       .rstrip()\
+                       .replace("\n"," ")
+    return abstract
+    
+
 #Getting the latest hep-th papers from the arxiv
 base_url = 'http://export.arxiv.org/rss/'
 subject = 'hep-th'
@@ -31,11 +46,7 @@ for entry in new_feed.entries:
     title_sp = entry.title.split(".")
     entry_title = title_sp[0]
 #    print("Title: ",entry_title)
-    abstract = entry.description
-    abstract = abstract.lstrip("<p>")
-    abstract = abstract.rstrip("</p>")
-    abstract = abstract.rstrip()
-    abstract = abstract.replace("\n"," ")
+    abstract = parse_abstract(entry)
 #    print("Abstract: ", abstract)
     authors = entry.author
     authors = authors.split(",")
