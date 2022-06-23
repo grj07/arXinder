@@ -24,20 +24,20 @@ new_feed = feedparser.parse(new_url)
 #new_feed = feedparser.parse('hep-th_new')
 
 entries = []
-for kk in range(len(new_feed.entries)):
-    link = new_feed.entries[kk].link
+for entry in new_feed.entries:
+    link = entry.link
     arxiv_number = link.lstrip('http://arxiv.org/abs/')
 #    print("arXiv number: ", arxiv_number)
-    title_sp = new_feed.entries[kk].title.split(".")
+    title_sp = entry.title.split(".")
     entry_title = title_sp[0]
 #    print("Title: ",entry_title)
-    abstract = new_feed.entries[kk].description
+    abstract = entry.description
     abstract = abstract.lstrip("<p>")
     abstract = abstract.rstrip("</p>")
     abstract = abstract.rstrip()
     abstract = abstract.replace("\n"," ")
 #    print("Abstract: ", abstract)
-    authors = new_feed.entries[kk].author
+    authors = entry.author
     authors = authors.split(",")
     authors = "<roo>" + "".join(authors) + "</roo>"
     authortree = ET.fromstring(str(authors))
@@ -46,7 +46,7 @@ for kk in range(len(new_feed.entries)):
         author_list.append(au.text)
     auths = auth_string(author_list)
 #    print("Authors: ",auths.rstrip())
-#    print("link: ",new_feed.entries[kk].link.rstrip(),"\n")
+#    print("link: ", entry.link.rstrip(),"\n")
     entry = ("\n",arxiv_number,
               entry_title,
                auths,abstract)
