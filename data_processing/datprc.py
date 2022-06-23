@@ -20,11 +20,10 @@ def parse_abstract(entry):
     You can extend it as much as you want without making the main chunk of the code
     harder to read.
     """
-    abstract = entry.description
-    abstract = abstract.lstrip("<p>")\
-                       .rstrip("</p>")\
-                       .rstrip()\
-                       .replace("\n"," ")
+    abstract = entry.description.lstrip("<p>")\
+                                .rstrip("</p>")\
+                                .rstrip()\
+                                .replace("\n"," ")
     return abstract
     
 
