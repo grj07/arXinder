@@ -2,8 +2,8 @@ import requests
 import xml.etree.ElementTree as ET
 import feedparser
 
-#function which turns author list into a nice string
 def auth_string(auth_list):
+    """Turns author list into a nice string."""
     if len(auth_list)==1:
         app = auth_list[0]
     else:
