@@ -64,9 +64,9 @@ for entry in new_feed.entries:
     entry_text = "\n".join(entry)
     entries.append(entry_text)
 content = "".join(entries)
-file = open('prcd.dat', 'w+')
-file.write(content)
-file.close
+
+with open('prcd.dat', 'w+') as file:
+    file.write(content)
 
 #foo = open("daily_email.dat","r")
 #linelist = foo.readlines()
