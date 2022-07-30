@@ -1,64 +1,69 @@
-#include <ncurses.h> /*ncurses library for "WINDOW" etc*/
+#include <ncurses.h> /*ncurses library, includes stdio.h*/
 #include <math.h>    /*Floor and ceilings*/
 #include <string.h>  /*string manipulations str...*/
-#include <stdio.h>   /*file manipulation*/
 #include <stdlib.h>  /*dynamic memory allocation malloc*/
 #include <menu.h>    /*menu library for options (e.g. which subject area to query)*/
+#include "gfuncs.h"
 
 #define FILENAME "prcd.dat" /*static file name for now. Likely to need dynamic later*/
+#define VERSION "0.0.3"
 
-//Declarations of functions: main code now, functions below.
-WINDOW *fixed_window(int bo, char title[], int hh, int ww, int sh, int sw);
-WINDOW *cont_window(int bo, char content[], int hh, int ww, int sh, int sw);
-
-	//Framework of boxes for title, authors, abstract 
 int main(int argc, char *argv[])
 {
 	//Window declarations
-	WINDOW *my_win, *fwin1, *fwin2, *fwin3, *fwin1_cont, *fwin2_cont, *fwin3_cont;
-	//Fixed strings
-	char main_title[]="Xiview: an arXiv viewer (version 0.0.2)";
-	char nav_guide[]="Use arrow keys <- , -> to navigate through entries.";
-	char sbj_guide[]="s - choose subject areas";
+	WINDOW *my_win, *title_win, *auth_win, *abs_win;
+	char chsub[] = "s - subjects";
+	char *sub;
 	//Character read from user
-	int ch;
+	int input;
 
 	//Declarations for reading entry data from file
-	//Note: Pointers for storing strings, memory allocated later in loop when size can be read from line
-	//buffer
 	char *line_buf = NULL;
+	char *subj_buf;
 	char *entry_arxivno, *entry_title, *entry_abstract, *entry_authors;
 	//Array to store line sizes to seek backwards to previous entries
-	size_t seekch[10000]; /*Should really detect the number of lines in the file but oh well*/
+	size_t seekch[10000]; /*A more advanced code would detect the 
+				number of lines in the file */
 	size_t line_buf_size = 0;
+	size_t subj_buf_size = 0;
 	int line_count = 0, totch=0, ent_count=1;
 	//Switches which track what data type the buffer is reading
 	int swarx = 1, swtit = 0, swauth = 0, swabs = 0;
-	ssize_t line_size;
+	ssize_t line_size, subj_size;
 	//Start ncurses
 	initscr();			
-	cbreak();			
-  					
-	keypad(stdscr, TRUE);		
 
-	//Generating title and windows
-	int title_hpos=floor(COLS/2-strlen(main_title)/2);
-	mvprintw(1,title_hpos,main_title);
-	mvprintw(2,1,nav_guide);
-	int sbjguide_hpos=COLS-strlen(sbj_guide);
-	mvprintw(2,sbjguide_hpos,sbj_guide);
-	refresh();
-	int etitle_size[]={floor(LINES/3)-1,floor(COLS/2)}, etitle_pos[]={5,1};
-	fwin1 = fixed_window(1,"Title", etitle_size[0],etitle_size[1],etitle_pos[0],etitle_pos[1]);
-	int eauths_size[2]={floor(LINES/3)-1, floor(COLS/2)-2}, eauths_pos[2]={5, ceill(COLS/2)+1};
-	fwin2 = fixed_window(1,"Authors", eauths_size[0],eauths_size[1],eauths_pos[0],eauths_pos[1]);
-	int eabs_size[2]={2*floor(LINES/3)-4, COLS-2}, eabs_pos[2]={ceill(LINES/3)+4, 1};
-	fwin3 = fixed_window(1,"Abstract", eabs_size[0],eabs_size[1],eabs_pos[0],eabs_pos[1]);
+	keypad(stdscr, TRUE);		
+	colours();
+
+	//Title screen on opening
+	title_screen();
+	move(2,10);
+	attrset(COLOR_PAIR(2));
+	typewriter("v ",100);
+	typewriter(VERSION,100);
+
+	title_win = bwinc("Title","", 8,COLS/2-2,5,2);
+	napms(100);
+	auth_win = bwinc("Authors", "",8,COLS/2-2,5,COLS/2+1);
+	napms(100);
+	abs_win = bwinc("Abstract","", LINES-13,COLS-2,13,2);
+	napms(100);
+	flushinp();
 	//Window contents now
 	/* Open the file for reading */
+	FILE *f_subject_list = fopen("subjects.conf", "rw");
+	subj_size = getline(&subj_buf,&subj_buf_size,f_subject_list);
+	sub = (char *)malloc(strlen(subj_buf)-1);
+	strncpy(sub,subj_buf,strlen(subj_buf)-1);
+	fclose(f_subject_list);
+	curs_set(1);
+	mvprintw(2,20,sub);
+	
 	FILE *fp = fopen(FILENAME, "r");
 	
 	/* Get the first line of the file. */
+
 	line_size = getline(&line_buf, &line_buf_size, fp);
 	seekch[0] = line_size;
 	while(line_size >= 0){
@@ -83,14 +88,14 @@ int main(int argc, char *argv[])
 			entry_abstract = (char *)malloc(strlen(line_buf)-1);
 			strncpy(entry_abstract,line_buf,strlen(line_buf)-1);
 			swabs=0;
-			//At this point the entire entry has been copied, and can be printed as the contents
+			//At this point the entire entry has been copied, 
+			//and can be printed as the contents
 			//of the window
-			fwin1_cont = cont_window(0,entry_title, etitle_size[0]-4, etitle_size[1]-2, etitle_pos[0]+2, etitle_pos[1]+1);
-			fwin2_cont = cont_window(0,entry_authors, eauths_size[0]-4,eauths_size[1]-2,eauths_pos[0]+2,eauths_pos[1]+1);
-			fwin3_cont = cont_window(0,entry_abstract, eabs_size[0]-4,eabs_size[1]-6,eabs_pos[0]+2,eabs_pos[1]+3);
-			refresh();
-			ch = getch();
-			if(ch ==KEY_RIGHT)
+			update_win(title_win,entry_title);
+			update_win(auth_win,entry_authors);
+			update_win(abs_win,entry_abstract);
+			input = getch();
+			if(input ==KEY_RIGHT)
 			{
 				line_count++;
 				swarx = line_count-1;
@@ -98,7 +103,7 @@ int main(int argc, char *argv[])
 				ent_count++;
 				continue;
 			}	
-			else if(ch ==KEY_LEFT)
+			else if(input ==KEY_LEFT)
 			{
 				if(ent_count==1)
 				{
@@ -140,35 +145,3 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-//Window generating functions
-WINDOW *fixed_window(int bo, char title[], int hh, int ww, int sh, int sw)
-{	
-	WINDOW *f_win;
-
-	f_win = newwin(hh,ww,sh,sw);
-	if(bo == 1)
-	{
-	box(f_win, 0 , 0);		
-	}					 
-//	mvwprintw(f_win,2,1,content);
-	mvwprintw(f_win,1,ww/2-strlen(title)/2,title);
-	wrefresh(f_win);		/* Show that box 		*/
-
-	return f_win;
-}
-
-WINDOW *cont_window(int bo, char content[], int hh, int ww, int sh, int sw)
-{	
-	WINDOW *f_win;
-
-	f_win = newwin(hh,ww,sh,sw);
-	if(bo == 1)
-	{
-	box(f_win, 0 , 0);		
-	}					 
-	mvwprintw(f_win,2,1,content);
-//	mvwprintw(f_win,1,ww/2-strlen(title)/2,title);
-	wrefresh(f_win);		/* Show that box 		*/
-
-	return f_win;
-}
