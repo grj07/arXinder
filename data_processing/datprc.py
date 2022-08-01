@@ -81,6 +81,6 @@ for entry in new_feed.entries:
     entries.append(entry_text)
 content = "".join(entries)
 
-with open('prcd.dat', 'w+') as file:
+with open(subject, 'w+') as file:
     file.write(content)
 
