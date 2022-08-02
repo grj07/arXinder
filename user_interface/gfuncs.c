@@ -19,6 +19,21 @@
 #define LYELLOWG 855
 #define LYELLOWB 700
 
+int max(int a,int b)
+{
+	if(a>b)
+		return(a);
+	else
+		return(b);
+}
+
+int min(int a,int b)
+{
+	if(a<b)
+		return(a);
+	else
+		return(b);
+}
 
 void bomb(char *msg)
 	//Quits program and prints message
@@ -45,6 +60,7 @@ void colours()
 	init_pair(2,GRAY,COLOR_BLACK);
 	init_pair(3,LRED,COLOR_BLACK);
 	init_pair(4,LYELLOW,COLOR_BLACK);
+	init_pair(5,COLOR_RED,LYELLOW);
 	}	
 }
 
@@ -103,17 +119,47 @@ WINDOW *bwinc(char *title, char *content, int height, int width, int ypos,int xp
 	return f_win;
 }
 
-void update_win(WINDOW *win,char *new_content)
+int new_scroll_value(WINDOW *win,char *content,int scv)
+{
+	int  height,width;
+	float scl;
+	getmaxyx(win,height,width);
+	scl = max(0,scv);
+	scl = min(strlen(content)/(width-4)-(height-4),scl);
+	return((int)scl);
+}
+
+void update_win(WINDOW *win,char *new_content, int scm)
 {
 	WINDOW *c_win;
 	int height, width;
+	int npl, nchars;
+	int c, cmax, cmin;
+	char ch;
 	getmaxyx(win,height,width);
-
+	npl = width-4;
+	nchars=(height-3)*(width-4);
+	cmax = min(strlen(new_content)-1,nchars);
+	if(cmax == nchars)
+	{
+		cmin = max(npl*scm,0);
+	}
+	else
+		cmin =0;
+	cmax = min(cmax +cmin,strlen(new_content)-1);
 	c_win = derwin(win,height-3,width-4,2,2);
 	wbkgd(c_win,COLOR_PAIR(4));
 	wclear(c_win);
-	mvwprintw(c_win,0,0,new_content);
+//	scrollok(c_win,TRUE);
+	wmove(c_win,0,0);
+//	wprintw(c_win,"This is the string length :%d",cmax);
+	for(c=cmin;c<=cmax;c++)
+	{
+		ch = (char)*(new_content+c);
+		waddch(c_win,ch);
+	}
 	wrefresh(c_win);
+	wrefresh(win);
 }
 
 void pull_datum(char **datum,size_t *datum_size,char *buffer)
@@ -197,14 +243,99 @@ void ecount_update(int ent_count,int no_of_entries)
 		mvprintw(3,19,"%d/%d",ent_count,no_of_entries);
 }
 
-void subject_menu(void)
+void make_mmenu(WINDOW *mwin,int item)
 {
-	WINDOW *menu_win = newwin(0,0,5,1);
-	mvwprintw(menu_win,1,1,"Welcome to the menu!");
-	wrefresh(menu_win);
-	while (getch() != 'q')
-					;
+	char inp;
+	int kk;
+	char mmenu[8][50] ={
+			"Computer Science",
+			"Economics",
+			"Electrical Engineering and Systems Science",
+			"Mathematics",
+			"Physics",
+			"Quantitative Biology",
+			"Quantitative Finance",
+			"Statistics"
+			};
+	for(kk=0;kk<8;kk++)
+	{
+		if(kk==item)
+		{
+			wattron(mwin,COLOR_PAIR(5));
+		}
+		mvwaddstr(mwin,kk+1,1,mmenu[kk]);
+		wattroff(mwin,COLOR_PAIR(5));
+	}
+	wrefresh(mwin);
 }
+
+void make_smenu(WINDOW *mwin,char *categ,int sitem)
+{
+	char buf;
+	size_t buf_size;
+	ssize_t line_size;
+	char file_string[60]; 
+	char folder[] = "subjects/";
+	int i;
+	for(i=0;i<strlen(folder);i++)
+	{
+		file_string[i]= folder[i];
+	}
+	for(i=strlen(folder);i<=strlen(folder)+strlen(categ);i++)
+	{
+		file_string[i]= categ[i-strlen(folder)];
+	}
+	FILE *cat_file; 
+	cat_file = fopen(file_string, "r");
+	buf = fgetc(cat_file);
+	while(buf!=EOF)
+	{
+		wprintw(mwin,"%c",buf);
+		buf = fgetc(cat_file);
+	}
+//	line_size = getline(&buf, &buf_size, cat_file);
+//	/*while loop navigates through entries*/
+//	while(line_size >= 0)
+//	{
+//		line_size = getline(&buf, &buf_size, cat_file);
+//		addstr(buf);
+//	}
+//	char inp;
+//	int kk;
+//	for(kk=0;kk<8;kk++)
+//	{
+//		if(kk==item)
+//			wattron(mwin,COLOR_PAIR(5));
+//		mvwaddstr(mwin,kk+1,1,mmenu[kk]);
+//		wattroff(mwin,COLOR_PAIR(5));
+//	}
+	addstr(file_string);
+	fclose(cat_file);
+	wrefresh(mwin);
+}
+
+void cat_menu(WINDOW *menu_win,int m_input, int *mm)
+{
+	char *categ;
+	switch(m_input)
+	{
+		case KEY_DOWN:
+			*mm = *mm+1;
+			if(*mm>=8)
+				*mm=0;
+			make_mmenu(menu_win, *mm);	
+			wrefresh(menu_win);
+			break;
+		case KEY_UP:
+			*mm = *mm-1;
+			if(*mm<0)
+				*mm=7;
+			make_mmenu(menu_win, *mm);	
+			wrefresh(menu_win);
+			break;
+	}
+}
+
 //int fetch_entry(FILE *f,char *arxiv_no,char *title,char *authors,char *abstract)
 //{
 //	size_t lb_size, line_size;

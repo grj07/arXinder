@@ -9,7 +9,7 @@
 int main(int argc, char *argv[])
 {
 	//Windows to display
-	WINDOW *my_win, *title_win, *auth_win, *abs_win, *menu_win;
+	WINDOW *my_win, *title_win, *auth_win, *abs_win, *menu_win, *smenu_win;
 	char chsub[] = "s - change subjects"; 
 
 	//Declarations for reading entry data from file
@@ -39,8 +39,11 @@ int main(int argc, char *argv[])
 					by skipping back seekch characters*/
 
 	//Switches which track what data type the buffer is reading
-	int input;
 	int swarx = 1, swtit = 0, swauth = 0, swabs = 0;
+
+	//Taking input from the user
+	int input, m_input;
+	int abs_scrl = 0;
 	//Start ncurses
 	initscr();			
 
@@ -61,6 +64,8 @@ int main(int argc, char *argv[])
 	auth_win = bwinc("Authors", "",8,COLS/2-1,5,COLS/2+2);
 	napms(100);
 	abs_win = bwinc("Abstract","", LINES-13,COLS-2,13,2);
+	wattrset(abs_win,COLOR_PAIR(2));
+	mvwaddstr(abs_win,1,COLS-26,"Use arrowkeys to scroll");
 	napms(100);
 	flushinp();
 
@@ -98,27 +103,57 @@ int main(int argc, char *argv[])
 			//At this point the entire entry has been copied, 
 			//and can be printed as the contents
 			//of the window
-			update_win(title_win,entry_title);
-			update_win(auth_win,entry_authors);
-			update_win(abs_win,entry_abstract);
+			update_win(title_win,entry_title,0);
+			update_win(auth_win,entry_authors,0);
+			update_win(abs_win,entry_abstract,0);
 			move(4,28);
 			clear_text(10);
 			move(4,28);
 			typewriter(entry_arxivno,40);
 			input = getch();
-			if(input =='s')
+			if(input == KEY_DOWN |input ==  KEY_UP |input ==  's')
 			{
-				wclear(menu_win);
-				touchwin(title_win);
-				touchwin(auth_win);
-				touchwin(abs_win);
-				wrefresh(title_win);
-				wrefresh(auth_win);
-				wrefresh(abs_win);
-				input = getch();
+				do
+				{
+					switch(input)
+					{
+						case KEY_DOWN:
+							abs_scrl = new_scroll_value(abs_win,entry_abstract,abs_scrl+1);
+							update_win(abs_win,entry_abstract,abs_scrl);
+							input = getch();
+							break;
+						case KEY_UP:
+							abs_scrl = new_scroll_value(abs_win,entry_abstract,abs_scrl-1);
+							update_win(abs_win,entry_abstract,abs_scrl);
+							input = getch();
+							break;
+						case 's':
+							menu_win = newwin(0,0,5,1);
+							make_mmenu(menu_win, 0);	
+							make_smenu(menu_win,"Computer Science",0);
+							wrefresh(menu_win);
+							m_input = getch();
+							int mm = 0;
+							while (m_input != 'q')
+							{
+								cat_menu(menu_win,m_input,&mm);
+								m_input = getch();
+							}
+							wclear(menu_win);
+							touchwin(title_win);
+							touchwin(auth_win);
+							touchwin(abs_win);
+							wrefresh(title_win);
+							wrefresh(auth_win);
+							wrefresh(abs_win);
+							input = getch();
+							break;
+					}
+				}while(input == KEY_DOWN |input ==  KEY_UP |input ==  's');
 			}
 			if(input ==KEY_RIGHT)
 			{
+				abs_scrl = 0;
 				line_count++;
 				swarx = line_count-1;
 				swarx = swarx % 5;
@@ -130,6 +165,7 @@ int main(int argc, char *argv[])
 			}	
 			else if(input ==KEY_LEFT)
 			{
+				abs_scrl = 0;
 				if(ent_count==1)
 				{
 					break;
