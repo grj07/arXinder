@@ -9,8 +9,10 @@
 int main(int argc, char *argv[])
 {
 	//Windows to display
-	WINDOW *my_win, *title_win, *auth_win, *abs_win, *menu_win, *smenu_win;
+	WINDOW *my_win, *title_win, *auth_win, *abs_win, *menu_win;
 	char chsub[] = "s - change subjects"; 
+	size_t ptf_size, qx_size;
+	char *pathtf;
 
 	//Declarations for reading entry data from file
 	FILE *f_sublist, *f_entries; 
@@ -40,6 +42,7 @@ int main(int argc, char *argv[])
 
 	//Switches which track what data type the buffer is reading
 	int swarx = 1, swtit = 0, swauth = 0, swabs = 0;
+	int mm = 0, km=0, sv = 0;
 
 	//Taking input from the user
 	int input, m_input;
@@ -67,6 +70,7 @@ int main(int argc, char *argv[])
 	wattrset(abs_win,COLOR_PAIR(2));
 	mvwaddstr(abs_win,1,COLS-26,"Use arrowkeys to scroll");
 	napms(100);
+	move(0,15);
 	flushinp();
 
 	//Subject bar defines current subject shown
@@ -128,18 +132,34 @@ int main(int argc, char *argv[])
 							input = getch();
 							break;
 						case 's':
+							curs_set(0);
+							noecho();
 							menu_win = newwin(0,0,5,1);
-							make_mmenu(menu_win, 0);	
-							make_smenu(menu_win,"Computer Science",0);
+							mm = 0;
+							sv = 0;
+							make_menu(menu_win,"cat_list", mm,sv);
 							wrefresh(menu_win);
 							m_input = getch();
-							int mm = 0;
-							while (m_input != 'q')
+							while (m_input != 'q') 
 							{
-								cat_menu(menu_win,m_input,&mm);
+								refresh_menu(menu_win,"cat_list",m_input,&mm,&sv);
+								if(m_input == '\n')
+								{
+									for(km=0;km<8;km++)
+									{
+										if(km == mm)
+										{
+											path_to_sub(km,&ptf_size,&pathtf);
+										}
+									}
+									smenu(menu_win,pathtf,0,0,0,1,COLS/2);
+									make_menu(menu_win,"cat_list", mm,sv);
+									wrefresh(menu_win);
+								}
+								wrefresh(menu_win);
 								m_input = getch();
 							}
-							wclear(menu_win);
+							delwin(menu_win);
 							touchwin(title_win);
 							touchwin(auth_win);
 							touchwin(abs_win);

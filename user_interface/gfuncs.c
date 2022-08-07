@@ -243,98 +243,185 @@ void ecount_update(int ent_count,int no_of_entries)
 		mvprintw(3,19,"%d/%d",ent_count,no_of_entries);
 }
 
-void make_mmenu(WINDOW *mwin,int item)
+void make_menu(WINDOW *mwin,char *path_to_file,int item, int scl)
 {
+	FILE *menu_list;
 	char inp;
-	int kk;
-	char mmenu[8][50] ={
-			"Computer Science",
-			"Economics",
-			"Electrical Engineering and Systems Science",
-			"Mathematics",
-			"Physics",
-			"Quantitative Biology",
-			"Quantitative Finance",
-			"Statistics"
-			};
-	for(kk=0;kk<8;kk++)
+	int kk=0,jj=0;
+	int wh, ww;
+	char *menu_item;
+	char *buf;
+	size_t buf_size = 100, menu_item_size = 100;
+	ssize_t lsize;
+	getmaxyx(mwin,wh,ww);
+	buf = (char *)malloc(buf_size * sizeof(char));
+	menu_list = fopen(path_to_file,"r");
+	lsize = getline(&buf,&buf_size,menu_list);
+	while(lsize >=0)	
 	{
+		pull_datum(&menu_item,&menu_item_size,buf);
+		
+
+	      	wmove(mwin,kk-scl,0);
+		wclrtoeol(mwin);
 		if(kk==item)
-		{
 			wattron(mwin,COLOR_PAIR(5));
+		if(kk>=scl)
+			mvwaddstr(mwin,kk-scl,1,menu_item);
+/*		for(jj=0;jj<2;jj++)
+		{
+			if(kk==xq[jj])
+				mvwaddch(mwin,kk-scl,0,'x');
 		}
-		mvwaddstr(mwin,kk+1,1,mmenu[kk]);
+		*/
 		wattroff(mwin,COLOR_PAIR(5));
+		lsize = getline(&buf,&buf_size,menu_list);
+		if(kk>wh+scl)
+			break;
+		kk++;
 	}
-	wrefresh(mwin);
+	fclose(menu_list);
 }
 
-void make_smenu(WINDOW *mwin,char *categ,int sitem)
+void refresh_menu(WINDOW *menu_win,char* path_to_file,int m_input, int *mm, int *sv)
 {
-	char buf;
-	size_t buf_size;
-	ssize_t line_size;
-	char file_string[60]; 
-	char folder[] = "subjects/";
-	int i;
-	for(i=0;i<strlen(folder);i++)
-	{
-		file_string[i]= folder[i];
-	}
-	for(i=strlen(folder);i<=strlen(folder)+strlen(categ);i++)
-	{
-		file_string[i]= categ[i-strlen(folder)];
-	}
-	FILE *cat_file; 
-	cat_file = fopen(file_string, "r");
-	buf = fgetc(cat_file);
-	while(buf!=EOF)
-	{
-		wprintw(mwin,"%c",buf);
-		buf = fgetc(cat_file);
-	}
-//	line_size = getline(&buf, &buf_size, cat_file);
-//	/*while loop navigates through entries*/
-//	while(line_size >= 0)
-//	{
-//		line_size = getline(&buf, &buf_size, cat_file);
-//		addstr(buf);
-//	}
-//	char inp;
-//	int kk;
-//	for(kk=0;kk<8;kk++)
-//	{
-//		if(kk==item)
-//			wattron(mwin,COLOR_PAIR(5));
-//		mvwaddstr(mwin,kk+1,1,mmenu[kk]);
-//		wattroff(mwin,COLOR_PAIR(5));
-//	}
-	addstr(file_string);
-	fclose(cat_file);
-	wrefresh(mwin);
-}
-
-void cat_menu(WINDOW *menu_win,int m_input, int *mm)
-{
+	int wh, ww, lc;
 	char *categ;
+	lc = line_counter(path_to_file);
+	getmaxyx(menu_win,wh,ww);
 	switch(m_input)
 	{
 		case KEY_DOWN:
 			*mm = *mm+1;
-			if(*mm>=8)
+			if(*mm>=lc)
+			{
 				*mm=0;
-			make_mmenu(menu_win, *mm);	
-			wrefresh(menu_win);
+				*sv=0;
+			}
+			if(lc<wh)
+				*sv=0;
+			else if(*mm>=wh-*sv)
+				*sv = min(*sv+1,lc-wh);
+			make_menu(menu_win,path_to_file, *mm,*sv);	
 			break;
 		case KEY_UP:
 			*mm = *mm-1;
 			if(*mm<0)
-				*mm=7;
-			make_mmenu(menu_win, *mm);	
-			wrefresh(menu_win);
+			{
+				*mm=lc-1;
+				*sv=lc-wh;
+			}
+			if(lc<wh)
+				*sv=0;
+			else if(*sv>0 && *mm<*sv)
+				*sv = *sv-1;
+			make_menu(menu_win,path_to_file, *mm,*sv);	
+			break;
+		case '\n':
+			*mm = *mm;
+			*sv = *sv;
+			make_menu(menu_win,path_to_file, *mm,*sv);	
 			break;
 	}
 }
+
+void path_to_sub(int item,size_t *ftring_size,char **file_string)
+{
+	int lc, mwinh, mwinw;
+	char *buf;
+	char *sub_string;
+	char folder[] = "subjects/";
+	size_t buf_size = 150, sub_size = 150;
+	ssize_t line_size,len;
+	int kk=0;
+	FILE *cats;
+	buf = (char *)malloc(buf_size * sizeof(char));
+	cats = fopen("cat_list","r");
+	line_size = getline(&buf,&buf_size,cats);
+	do
+	{
+		if(kk==item)
+		{
+			pull_datum(&sub_string,&sub_size,buf);
+			break;
+		}
+		line_size = getline(&buf,&buf_size,cats);
+		kk++;
+	}while(line_size >=0);	
+	fclose(cats);
+	*ftring_size = strlen(sub_string)+strlen(folder);
+	*file_string = (char *)malloc((*ftring_size)*sizeof(char));
+	int i, imax;
+	for(i=0;i<strlen(folder);i++) /*for loops generate file path string*/
+	{
+		*(*file_string+i)= folder[i];
+	}
+	for(i=strlen(folder);i<=*ftring_size-1;i++)
+	{
+		*(*file_string+i)= sub_string[i-strlen(folder)];
+	}
+	*(*file_string+*ftring_size)='\0';
+}
+
+void xtag(WINDOW *win,int *xd_terms)
+{
+	int i;
+	int lxd;
+	lxd = sizeof(xd_terms)/sizeof(int);
+	for(i=0;i<lxd-1;i++)
+		mvwaddch(win,xd_terms[i],0,'x');
+}
+
+void smenu(WINDOW *win,char *fpath,int sitem, int ymax,int xmax,int yy,int xx)
+{
+	WINDOW *swindow;
+	FILE *array_file, *in_file;
+	int km=0, sv=0, kk=0;
+	int i=0,ii=0;
+	int *array;
+	array = (int *)malloc((i+1)*sizeof(int));
+//	in_file = fopen("array_test","r");
+//	fread(array,sizeof(array),sizeof(int),in_file);
+//	fclose(in_file);
+	int in;
+	swindow = derwin(win,ymax,xmax,yy,xx);
+	touchwin(stdscr);
+	touchwin(win);
+	refresh();
+	wrefresh(win);
+	wrefresh(swindow);
+	make_menu(swindow,fpath, sitem,0);
+	xtag(swindow,(int *)array);
+	wrefresh(swindow);
+	in = getch();
+	while (in != 'q') 
+	{
+		refresh_menu(swindow,fpath,in,&km,&sv);
+		if(in == '\n')
+		{
+			*(array+ii) = km;
+			ii++;
+			array = (int *)realloc(array,(1+ii)*sizeof(int));
+			mvwaddch(swindow,km-sv,0,'x');
+		}
+		touchwin(stdscr);
+		touchwin(win);
+		refresh();
+		wrefresh(win);
+		xtag(swindow,array);
+		wrefresh(swindow);
+		in = getch();
+	}
+	wclear(swindow);
+	wrefresh(swindow);
+	refresh();
+	array_file = fopen("array_test","w");
+	for(i=0;i<=ii-1;i++)
+		fprintf(array_file,"%d \n",*(array+i));
+	fclose(array_file);
+}
+	
+
 
 //int fetch_entry(FILE *f,char *arxiv_no,char *title,char *authors,char *abstract)
 //{

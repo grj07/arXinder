@@ -12,9 +12,11 @@ extern void update_win(WINDOW *win,char *new_content,int scm);
 extern void clear_text(int length);
 extern void pull_datum(char **datum,size_t *datum_size,char *buffer);
 extern void title_screen(void);
-extern void make_mmenu(WINDOW *mwin, int item);
-extern void make_smenu(WINDOW *mwin,char *categ,int sitem);
+extern void path_to_sub(int item,size_t *ftring_size,char **file_string);
+extern void make_menu(WINDOW *mwin,char *path_to_file, int item, int scl);
 extern void ecount_update(int ent_count,int no_of_entries);
-extern void cat_menu(WINDOW *menu_win,int m_input, int *mm);
+extern void refresh_menu(WINDOW *menu_win, char* path_to_file,int m_input,int *mm, int *sv);
+extern void xtag(WINDOW *win,int xd_terms[]);
+extern void smenu(WINDOW *win,char *fpath,int sitem, int ymax,int xmax,int yy,int xx);
 //extern int fetch_entry(FILE *f,int line_size,
 //				char *arxiv_no,char *title,char *authors,char *abstract);
