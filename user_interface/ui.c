@@ -2,9 +2,13 @@
 #include <math.h>    /*Floor and ceilings*/
 #include <string.h>  /*string manipulations str...*/
 #include <stdlib.h>  /*dynamic memory allocation malloc*/
+#include <pthread.h>
+#include <time.h>
+#include <unistd.h>
 #include "gfuncs.h"
 #include "pfuncs.h"
 
+#define NTHREADS  2
 #define VERSION "0.0.3"
 
 int main(int argc, char *argv[])
@@ -43,7 +47,22 @@ int main(int argc, char *argv[])
 	curs_set(0);
 
 	//Title screen on opening
-	title_screen(col);
+	;
+	int ii, rc;
+	pthread_t threads[NTHREADS];
+
+
+	  /* spawn the threads */
+	rc = pthread_create(&threads[0], NULL, call_datprc,NULL);
+	rc = pthread_create(&threads[1], NULL, title_screen,&col);
+	
+	/* wait for threads to finish */
+	for (ii=0; ii<NTHREADS; ii++) 
+	{
+		rc = pthread_join(threads[ii], NULL);
+	}
+
+
 	add_colour(2,col);
 	move(2,10);
 	typewriter("v ",100);
@@ -60,15 +79,17 @@ int main(int argc, char *argv[])
 
 	wattrset(abs_win,COLOR_PAIR(2));
 	mvwaddstr(abs_win,1,COLS-28,"Use arrowkeys to scroll");
-	napms(100);
 	wrefresh(title_win);
-	napms(100);
 	wrefresh(auth_win);
-	napms(100);
 	wrefresh(abs_win);
 
-	//check and display subject area
+	//Python script updates subject files
+	
+	//check and display name of subject area
 	sub = subject(0);
+	//Need to write a program which fills an array with the relevant subjects, and
+	//displays them appropriately across the top.
+
 	refresh();
 	flushinp(); /*Clears the keyboard buffer so any key hit during title screen not input*/
 

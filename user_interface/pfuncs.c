@@ -1,7 +1,9 @@
 /*pfuncs.c - particular functions for arXinder*/
 #include <ncurses.h>
 #include <string.h>
+#include <unistd.h>
 #include <stdlib.h>
+#include <Python.h>
 #include "pfuncs.h"
 #include "gfuncs.h"
 
@@ -19,6 +21,22 @@
 #define LYELLOWR 855
 #define LYELLOWG 855
 #define LYELLOWB 700
+
+
+//This function runs Python. Threaded with the title screen and navigator
+void *call_datprc()
+{
+	char filename[] = "datprc.py";
+	FILE* fp;
+
+	Py_Initialize();
+
+	fp = fopen(filename, "r");
+	PyRun_SimpleFile(fp, filename);
+
+	Py_Finalize();
+	return NULL;
+}
 
 int colours() /*Colours checks if the terminal can do colours, and returns 1 if so*/
 {
@@ -44,7 +62,7 @@ int colours() /*Colours checks if the terminal can do colours, and returns 1 if 
 	return(qu);
 }
 
-void title_screen(int col)
+void *title_screen(int col)
 {
 	char title1[]="ar";
 	char title2[]="inder";
@@ -56,7 +74,7 @@ void title_screen(int col)
 	move(LINES/2,COLS/2-disp);
 	add_colour(1,col);
 	attrset(COLOR_PAIR(1));
-	typewriter(title1,80);
+	typewriter(title1,120);
 	refresh();
 	add_colour(2,col);
 	attron(A_BOLD);
@@ -71,22 +89,22 @@ void title_screen(int col)
 	move(LINES/2,COLS/2-disp+strlen(title1));
 	addch('X');
 	refresh();
-	napms(100);
+	usleep(100000);
 	
 	attroff(A_BOLD);
 	add_colour(1,col);
-	typewriter(title2,50);
+	typewriter(title2,120);
 	
-	napms(500);
+	usleep(500000);
 	attrset(COLOR_PAIR(3));
 	move(LINES/2+2,COLS/2-strlen(subtitle)/2);
-	typewriter(subtitle,10);
+	typewriter(subtitle,30);
 	move(1,1);
 	for(kk=1;kk<=LINES/2-2;kk++)
 	{
 		deleteln();
 		refresh();
-		napms(20);
+		usleep(20000);
 	}
 	for(kk=1;kk<=COLS/2-disp-1;kk++)
 	{
@@ -99,7 +117,7 @@ void title_screen(int col)
 		delch();
 		move(1,1);
 		refresh();
-		napms(20);
+		usleep(20000);
 	}
 	refresh();
 	noecho();
@@ -123,7 +141,7 @@ WINDOW *bt_win(char *title, int height, int width, int ypos,int xpos)
 
 char *subject(int n) /*returns the subject to extract entries from*/
 {
-	FILE *f_sublist, *f_entries; 
+	FILE *f_sublist; 
 	char *subj_buf=NULL; /*buffers must be null for getline to work*/
 	size_t  subj_buf_size; /*Sizes of buffer necessary too*/
 
@@ -212,7 +230,7 @@ char *fetch_entry(char* sub,int entry_no, int line_count,int etype)
 	FILE *sub_file;
 	char *line_buffer = NULL; /*line buffer is filled with line from file using getline*/
 	size_t lb_size;
-	ssize_t line_size;
+	ssize_t line_size=0;
 	int lvar = (entry_no-1)*5+2+etype;
 	int kk;
 	sub_file = fopen(sub,"r");
@@ -321,23 +339,16 @@ char *refresh_menu(WINDOW *menu_win,char* path_to_file,int m_input, int *mm, int
 //Navigator executes purpose of the program. Navigates arxiv entries
 void navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int input,int *entry_no, int *abs_scrl)
 {
-	WINDOW *menu_win;
-	FILE *f_entries; 
 	int no_of_entries;
 	int line_count = line_counter(sub);
 	no_of_entries = (line_count-1)/5;	/*Computing the number of entries*/
 
 	//Entry data to display
 	char *entry_arxivno, *entry_title, *entry_abstract, *entry_authors;
-	char cat_list[]="cat_list"; /*Filename for list of subject categories*/
 
+	ecount_update(*entry_no,no_of_entries); /*update the displayed entry number*/
 
-
-	
-	ecount_update(*entry_no,no_of_entries);
-	menu_win = bt_win("Categories",0,0,5,2);
-	int inp;
-	int ran=1; /*True when arxiv number needs to be refreshed*/
+	int ran; /*True when arxiv number needs to be refreshed*/
 
 	switch(input) /*Needs to update abstract  sroll value, changes entry number*/
 	{
@@ -367,9 +378,14 @@ void navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int input,
 			*abs_scrl = new_scroll_value(abswin,entry_abstract,*abs_scrl-1);
 			ran = 0;
 			break;
+		case '0':
+			entry_abstract = fetch_entry(sub,*entry_no,line_count,3);
+			ran=1;
+			break;
 		default:
 			entry_abstract = fetch_entry(sub,*entry_no,line_count,3);
 			ran=0;
+			break;
 	}
 	//entry data goes to respective strings
 	entry_arxivno = fetch_entry(sub,*entry_no,line_count,0);
@@ -409,7 +425,6 @@ void chosen_subjects(WINDOW *cho_win,int scl)
 	size_t buf_size; 
 	ssize_t lsize;
 	getmaxyx(cho_win,wh,ww);
-	size_t menu_item_size=(ww-1)*sizeof(char);
 	char *menu_item = calloc(ww-1,sizeof(char));
 	sub_list = fopen("subjects.conf","r");
 	lsize = getline(&buf,&buf_size,sub_list);

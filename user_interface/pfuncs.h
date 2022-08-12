@@ -1,7 +1,8 @@
 /*pfuncs.h*/
 
+extern void *call_datprc();
 extern int colours();
-extern void title_screen(int col);
+extern void *title_screen(int col);
 extern WINDOW *bt_win(char *title, int height, int width, int ypos,int xpos);
 extern char *subject(int n);
 extern void ecount_update(int ent_count,int no_of_entries);

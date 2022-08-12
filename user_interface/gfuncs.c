@@ -2,6 +2,7 @@
 #include <ncurses.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "gfuncs.h"
 
 void bomb(char *msg)
@@ -38,7 +39,7 @@ void typewriter(char *typed_text, int timestep)
 		addch(*pos);
 		pos++;
 		refresh();
-		napms(timestep);
+		usleep(timestep*1000);
 	}
 }
 
@@ -91,21 +92,20 @@ int new_scroll_value(WINDOW *win,char *content,int scv)
 //Returns the concatenated strings string_1 string_2
 char *join_strings(char *string_1, char *string_2)
 {
-	int lc, mwinh, mwinw;
 	char *string;
 	int stsize, s1size;
 
 	s1size = strlen(string_1);
 	stsize = s1size+strlen(string_2);
 	string = (char *)malloc((stsize+1)*sizeof(char));
-	int i, imax;
+	int i;
 	//assigning string_1 to first part of string
-	for(i=0;i<strlen(string_1);i++)
+	for(i=0;i<s1size;i++)
 	{
 		*(string + i)= *(string_1+i);
 	}
 	//assigning string_2 to second part of string
-	for(i=strlen(string_1);i<stsize;i++)
+	for(i=s1size;i<stsize;i++)
 	{
 		*(string + i)= *(string_2+i-s1size);
 	}
