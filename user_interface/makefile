@@ -1,11 +1,10 @@
 filename=ui
 
 output: object 
-	gcc -o ${filename} ${filename}.o gfuncs.o -lncursesw
+	gcc -o ${filename} ${filename}.o gfuncs.o pfuncs.o -lncurses
 	rm *.o
 	
 object:	
-	rsync /home/guy/arXinder/user_interface/gfuncs.* .
-	gcc -c -g gfuncs.c -lncursesw
-	gcc -c -g ${filename}.c -lncursesw
+	gcc -c -g gfuncs.c pfuncs.c -lncurses
+	gcc -c -g ${filename}.c -lncurses
 

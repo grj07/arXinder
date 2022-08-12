@@ -3,232 +3,194 @@
 #include <string.h>  /*string manipulations str...*/
 #include <stdlib.h>  /*dynamic memory allocation malloc*/
 #include "gfuncs.h"
+#include "pfuncs.h"
 
 #define VERSION "0.0.3"
 
 int main(int argc, char *argv[])
 {
-	//Windows to display
-	WINDOW *my_win, *title_win, *auth_win, *abs_win, *menu_win;
-	char chsub[] = "s - change subjects"; 
-	size_t ptf_size, qx_size;
-	char *pathtf;
+	FILE *sub_file;
+	//declaring principle windows to display
+	WINDOW *title_win, *auth_win, *abs_win, *menu_win; 
+	//declaring subwindows 
+	WINDOW *cat_win, *sub_win, *cho_win; 
+	char chsub[] = "s - change subjects";  /*instructions*/
+	char smsub[] = "c - clear subjects";  
 
-	//Declarations for reading entry data from file
-	FILE *f_sublist, *f_entries; 
-	char *ent_buf, *subj_buf; /*buffers store lines of file reading*/
-	size_t ent_buf_size, subj_buf_size; /*Sizes of buffer necessary for 
-					      storing strings to buffer with getline*/
-	ssize_t line_size, subj_size;
-	//Entry data to display
-	char *sub, *entry_arxivno, *entry_title, *entry_abstract, *entry_authors;
+	//User input for entry navigator
+	int input, mm, scrl;
 
-	//Reading subject list
-	f_sublist = fopen("subjects.conf", "rw");
-	subj_size = getline(&subj_buf,&subj_buf_size,f_sublist);
-	sub = (char *)malloc(strlen(subj_buf)-1);
-	strncpy(sub,subj_buf,strlen(subj_buf)-1);
-	fclose(f_sublist);
+	//User input for menu system
+	int cm = 0,csv = 0, sm = 0, ssv = 0;
+	char *cat, *sub, *sbj;
+	char *path = malloc(60*sizeof(char));
+	char *tpath = malloc(60*sizeof(char));
+	size_t sub_size;
 
-	//Computing the number of entries
-	int line_count = line_counter(sub);
-	int no_of_entries = (line_count-1)/5;	
-	int ent_count=1;           /*start on first entry*/
 
-	size_t seekch[line_count]; /*Array to store line sizes */
-	line_count = 0;
-	int seek_ch=0;		   /*Seek backwards to previous entries
-					by skipping back seekch characters*/
-
-	//Switches which track what data type the buffer is reading
-	int swarx = 1, swtit = 0, swauth = 0, swabs = 0;
-	int mm = 0, km=0, sv = 0;
-
-	//Taking input from the user
-	int input, m_input;
-	int abs_scrl = 0;
-	//Start ncurses
-	initscr();			
-
-	keypad(stdscr, TRUE);		
-	colours();
-
-	//Title screen on opening
-	title_screen();
-	move(2,10);
-	attrset(COLOR_PAIR(2));
-	typewriter("v ",100);
-	typewriter(VERSION,100);
-
-	mvprintw(4,COLS-strlen(chsub),chsub);
-
-	title_win = bwinc("Title","", 8,COLS/2-1,5,2);
-	napms(100);
-	auth_win = bwinc("Authors", "",8,COLS/2-1,5,COLS/2+2);
-	napms(100);
-	abs_win = bwinc("Abstract","", LINES-13,COLS-2,13,2);
-	wattrset(abs_win,COLOR_PAIR(2));
-	mvwaddstr(abs_win,1,COLS-26,"Use arrowkeys to scroll");
-	napms(100);
-	move(0,15);
-	flushinp();
-
-	//Subject bar defines current subject shown
-	attrset(COLOR_PAIR(4)|A_BOLD);
-	mvprintw(2,20,sub);
-	attrset(COLOR_PAIR(4));
-	ecount_update(ent_count,no_of_entries);
+	if(!line_counter("subjects.conf"))
+		bomb("Error, no subject file");
 	
 
-	/* Get the first line of the file. */
-	f_entries = fopen(sub,"r");
-	line_size = getline(&ent_buf, &ent_buf_size, f_entries);
-	seekch[0] = line_size;
-	line_size = getline(&ent_buf, &ent_buf_size, f_entries);
-	seekch[line_count+1] = line_size;
-	/*while loop navigates through entries*/
-	while(line_size >= 0){
-		if( swtit ==1){
-			size_t etitle_size;
-			pull_datum(&entry_title,&etitle_size,ent_buf);
-			swtit=0;
-			swauth=1;
-		}
-		else if( swauth ==1){
-			size_t eauth_size;
-			pull_datum(&entry_authors,&eauth_size,ent_buf);
-			swauth=0;
-			swabs=1;
-		}
-		else if( swabs ==1){
-			size_t eabs_size;
-			pull_datum(&entry_abstract,&eabs_size,ent_buf);
-			swabs=0;
-			//At this point the entire entry has been copied, 
-			//and can be printed as the contents
-			//of the window
-			update_win(title_win,entry_title,0);
-			update_win(auth_win,entry_authors,0);
-			update_win(abs_win,entry_abstract,0);
-			move(4,28);
-			clear_text(10);
-			move(4,28);
-			typewriter(entry_arxivno,40);
+	//initialise ncurses mode
+	initscr();			
+
+	int col;
+	col = colours(); /*col=0 is black and white mode*/
+
+	keypad(stdscr, TRUE);		
+	noecho();
+	curs_set(0);
+
+	//Title screen on opening
+	title_screen(col);
+	add_colour(2,col);
+	move(2,10);
+	typewriter("v ",100);
+	typewriter(VERSION,100);
+	mvprintw(4,COLS-strlen(chsub),chsub);
+	rem_colour(2,col);
+	refresh();
+
+	//entries to be displayed here
+	title_win = bt_win("Title",8,COLS/2-2,5,2);
+	auth_win = bt_win("Authors",8,COLS/2-2,5,COLS/2+1);
+	abs_win = bt_win("Abstract", LINES-13,COLS-4,13,2);
+	menu_win=bt_win("Subject Settings",LINES-4,COLS-4,5,2);
+
+	wattrset(abs_win,COLOR_PAIR(2));
+	mvwaddstr(abs_win,1,COLS-28,"Use arrowkeys to scroll");
+	napms(100);
+	wrefresh(title_win);
+	napms(100);
+	wrefresh(auth_win);
+	napms(100);
+	wrefresh(abs_win);
+
+	//check and display subject area
+	sub = subject(0);
+	refresh();
+	flushinp(); /*Clears the keyboard buffer so any key hit during title screen not input*/
+
+	mm=1; /*start on first entry, scroll set to top, meaningless input*/
+	scrl=0;
+	input = '0';
+	do	
+	{
+		//put in pfuncs --------------------------------------------------------------------------
+		if(input == 's') /*Subject menu begins */
+		{
+			menu_win=bt_win("Subject Settings",LINES-5,COLS-4,5,2);
+			wbkgd(menu_win,COLOR_PAIR(2));
+			mvwaddstr(menu_win,1,COLS-25,smsub);
+			wrefresh(menu_win);
+			wbkgd(menu_win,COLOR_PAIR(4));
+			cat_win = derwin(menu_win,9,45,2,1); 
+			sub_win = derwin(menu_win,LINES-8,COLS-60,2,48);
+			cho_win = derwin(menu_win,LINES-20,45,14,1);
+			chosen_subjects(cho_win,0);
+		
+			wrefresh(cat_win);
+			wrefresh(cho_win);
+			cat = make_menu(cat_win,"cat_list",cm,csv);
+			wrefresh(cat_win);
 			input = getch();
-			if(input == KEY_DOWN |input ==  KEY_UP |input ==  's')
-			{
-				do
+			while(input!='q') /*choose category*/
+			{	
+				free(cat);
+				cat = refresh_menu(cat_win,"cat_list",input,&cm,&csv);
+
+				if(input == 'c')
 				{
-					switch(input)
+					clear_sublist();
+					wclear(cho_win);
+					chosen_subjects(cho_win,0);
+					wrefresh(cho_win);
+				}
+				if(input=='\n')/*category selected, choose subject*/
+				{
+					
+					free(path);
+					path = join_strings("subjects/",cat);
+
+					//fetch array with subject settings
+					free(tpath);
+					tpath = join_strings("subjects/",cat);
+
+					sbj = make_menu(sub_win,path,sm,ssv);
+					wrefresh(sub_win);
+					input = getch();
+					while(input!='q')
 					{
-						case KEY_DOWN:
-							abs_scrl = new_scroll_value(abs_win,entry_abstract,abs_scrl+1);
-							update_win(abs_win,entry_abstract,abs_scrl);
-							input = getch();
-							break;
-						case KEY_UP:
-							abs_scrl = new_scroll_value(abs_win,entry_abstract,abs_scrl-1);
-							update_win(abs_win,entry_abstract,abs_scrl);
-							input = getch();
-							break;
-						case 's':
-							curs_set(0);
-							noecho();
-							menu_win = newwin(0,0,5,1);
-							mm = 0;
-							sv = 0;
-							make_menu(menu_win,"cat_list", mm,sv);
-							wrefresh(menu_win);
-							m_input = getch();
-							while (m_input != 'q') 
-							{
-								refresh_menu(menu_win,"cat_list",m_input,&mm,&sv);
-								if(m_input == '\n')
-								{
-									for(km=0;km<8;km++)
-									{
-										if(km == mm)
-										{
-											path_to_sub(km,&ptf_size,&pathtf);
-										}
-									}
-									smenu(menu_win,pathtf,0,0,0,1,COLS/2);
-									make_menu(menu_win,"cat_list", mm,sv);
-									wrefresh(menu_win);
-								}
-								wrefresh(menu_win);
-								m_input = getch();
-							}
-							delwin(menu_win);
-							touchwin(title_win);
-							touchwin(auth_win);
-							touchwin(abs_win);
-							wrefresh(title_win);
-							wrefresh(auth_win);
-							wrefresh(abs_win);
-							input = getch();
-							break;
+						if(input == 'c')
+						{
+							clear_sublist();
+							wclear(cho_win);
+							chosen_subjects(cho_win,0);
+							wrefresh(cho_win);
+						}
+						if(input == 'c')
+							clear_sublist();
+						if(input == '\n')/*subject selected, add to list*/
+						{
+							sub_file=fopen("subjects.conf","a");
+							fprintf(sub_file,"%s\n",strtok(sbj ," ,"));
+							fclose(sub_file);
+							chosen_subjects(cho_win,0);
+							wrefresh(cho_win);
+						}
+						free(sbj);
+						sbj = refresh_menu(sub_win,path,input,&sm,&ssv);
+						wrefresh(sub_win);
+						input = getch();
 					}
-				}while(input == KEY_DOWN |input ==  KEY_UP |input ==  's');
-			}
-			if(input ==KEY_RIGHT)
-			{
-				abs_scrl = 0;
-				line_count++;
-				swarx = line_count-1;
-				swarx = swarx % 5;
-				ent_count++;
-				line_size = getline(&ent_buf, &ent_buf_size, f_entries);
-				seekch[line_count+1] = line_size;
-				ecount_update(ent_count,no_of_entries);
-				continue;
-			}	
-			else if(input ==KEY_LEFT)
-			{
-				abs_scrl = 0;
-				if(ent_count==1)
-				{
-					break;
+					free(sbj);
 				}
-				else{
-/*this code counts how */		seek_ch=seekch[line_count+1]+
-/*many characters the cursor*/			seekch[line_count]+seekch[line_count-1]+
-/*skips back to the previous entry*/		seekch[line_count-2]+seekch[line_count-3]+
-						seekch[line_count-4];
-					line_count=line_count-5;
-					seek_ch=seek_ch +seekch[line_count]+seekch[line_count-1]+
-						seekch[line_count-2]+seekch[line_count-3]+
-						seekch[line_count-4];
-					line_count=line_count-5;
-					fseek(f_entries,-seek_ch,SEEK_CUR);
-					line_size = getline(&ent_buf, &ent_buf_size, f_entries);
-					line_count++;
-					swarx = line_count-1;
-					swarx = swarx % 5;
-					ent_count = ent_count-1;
-					line_size = getline(&ent_buf, &ent_buf_size, f_entries);
-					seekch[line_count+1] = line_size;
-					ecount_update(ent_count,no_of_entries);
-					continue;
-				}
+				sm = 0;
+				ssv = 0;
+				wclear(sub_win);
+				wrefresh(sub_win);
+				wrefresh(cat_win);
+				input = getch();
 			}
-			else
-			{
-				break;
-			}
-		}
-		else if( swarx==0){
-			size_t e_arxivno_size;
-			pull_datum(&entry_arxivno,&e_arxivno_size,ent_buf);
-			swtit = 1;
+			free(cat);
+			cm = 0;			/*resets menu position and scroll*/
+			csv = 0;
+			wclear(menu_win);
+			wrefresh(menu_win);
+			delwin(menu_win);
+		}/*Subject menu ends */
+	//pfuncs ends here ---------------------------------------------------------------------------
+	
+	//Can't leave menu unless subjects have been chosen
+	if(line_counter("subjects.conf")==0) 	
+	{
+		move(1,20);
+		printw("Choose at least one subject");
+		refresh();
+		move(1,20);
+		napms(2000);
+		clear_text(30);
+		input='s';
+		continue;
 	}
-	line_count++;
-	swarx = line_count-1;
-	swarx = swarx % 5;
-	line_size = getline(&ent_buf, &ent_buf_size, f_entries);
-	seekch[line_count+1] = line_size;
-	}
-	fclose(f_entries);
+
+	touchwin(title_win);
+	touchwin(auth_win);
+	touchwin(abs_win);
+
+	//Navigator explores entries, defined in pfuncs.c
+	navigator(title_win,auth_win,abs_win,sub,input,&mm,&scrl); 
+
+	input = getch();
+	}while(input!='q');
+
+
+
 	endwin();			/* End curses mode		  */
+
+	free(path);
+	free(tpath);
+	free(sub);
 	return 0;
 }
