@@ -62,8 +62,9 @@ int colours() /*Colours checks if the terminal can do colours, and returns 1 if 
 	return(qu);
 }
 
-void *title_screen(int col)
+void *title_screen(void *col)
 {
+	int coli = *(int *)col;
 	char title1[]="ar";
 	char title2[]="inder";
 	char subtitle[]="sort and file the new papers from the arXiv.";
@@ -72,11 +73,10 @@ void *title_screen(int col)
 
 	curs_set(0);
 	move(LINES/2,COLS/2-disp);
-	add_colour(1,col);
-	attrset(COLOR_PAIR(1));
+	add_colour(1,coli);
 	typewriter(title1,120);
 	refresh();
-	add_colour(2,col);
+	add_colour(2,coli);
 	attron(A_BOLD);
 	move(LINES/2-1,COLS/2-disp-1+strlen(title1));
 	addch('\\');
@@ -92,11 +92,11 @@ void *title_screen(int col)
 	usleep(100000);
 	
 	attroff(A_BOLD);
-	add_colour(1,col);
+	add_colour(1,coli);
 	typewriter(title2,120);
 	
 	usleep(500000);
-	attrset(COLOR_PAIR(3));
+	add_colour(3,coli);
 	move(LINES/2+2,COLS/2-strlen(subtitle)/2);
 	typewriter(subtitle,30);
 	move(1,1);
@@ -139,39 +139,21 @@ WINDOW *bt_win(char *title, int height, int width, int ypos,int xpos)
 	return f_win;
 }
 
-char *subject(int n) /*returns the subject to extract entries from*/
+void update_subs(int n, char *sub_array[],int nsubs) /*returns the subject to extract entries from*/
 {
-	FILE *f_sublist; 
-	char *subj_buf=NULL; /*buffers must be null for getline to work*/
-	size_t  subj_buf_size; /*Sizes of buffer necessary too*/
-
-	char *sub_string; /*output and printed at top*/
-	ssize_t subj_size;
-	int kk=0;
-	//Reading subject list
-	f_sublist = fopen("subjects.conf", "r");
-	subj_size = getline(&subj_buf,&subj_buf_size,f_sublist);
-
-	while(subj_size>=0) /*getline fills subj_buf with line from file*/
-	{
-		if(kk==n)
-			break;
-		kk++;
-		subj_size = getline(&subj_buf,&subj_buf_size,f_sublist);
-	}
-	
-	//need to snip off the final character. Is strcpy necessary? 
-	sub_string = (char *)malloc(strlen(subj_buf)*sizeof(char));
-	strncpy(sub_string,subj_buf,strlen(subj_buf)-1);
-	*(sub_string+strlen(subj_buf)-1)='\0';
-	fclose(f_sublist);
-
+	int jj=0;
+	int ll=0;
+	int dm;
 	attron(A_BOLD);
-	mvprintw(2,20,sub_string);
+	mvprintw(2,20,sub_array[n]);
 	attroff(A_BOLD);
-
-	free(subj_buf);
-	return(sub_string);
+	dm = strlen(sub_array[n])+5;
+	for(jj=n+1;jj<nsubs+n;jj++)
+	{
+		ll = jj % nsubs;
+		mvprintw(2,20+dm,sub_array[ll]);
+		dm = dm + max(strlen(sub_array[ll])+5,0);
+	}
 }
 
 void ecount_update(int ent_count,int no_of_entries)
@@ -252,7 +234,7 @@ char *make_menu(WINDOW *mwin,char *path_to_file,int item, int scl)
 	int kk=0;
 	int wh, ww;
 	char *buf=NULL;
-	char *sel_item;
+	char *sel_item = NULL;
 	size_t buf_size; 
 	ssize_t lsize;
 
@@ -265,7 +247,7 @@ char *make_menu(WINDOW *mwin,char *path_to_file,int item, int scl)
 	lsize = getline(&buf,&buf_size,menu_list);
 	while(lsize >=0)	
 	{
-		strncpy(menu_item,buf,strlen(buf)-1);
+		strcpy(menu_item,buf);
 		*(menu_item+strlen(buf)-1)='\0';/*no pesky newline character*/
 
 	      	wmove(mwin,kk-scl,0);/*clear old menu item in this spot*/
@@ -294,11 +276,11 @@ char *make_menu(WINDOW *mwin,char *path_to_file,int item, int scl)
 //refresh_menu responds to minput and refreshes the new menu
 char *refresh_menu(WINDOW *menu_win,char* path_to_file,int m_input, int *mm, int *sv)
 {
-	int wh, ww, lc; /*need to know: window dims and number of lines for menu*/
+	int wh, lc; /*need to know: window dims and number of lines for menu*/
 	char *categ;
 
 	lc = line_counter(path_to_file);
-	getmaxyx(menu_win,wh,ww);
+	wh = getmaxy(menu_win);
 
 	switch(m_input) /* adjusts menu according to item selected and scroll value*/
 	{
@@ -341,7 +323,7 @@ void navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int input,
 {
 	int no_of_entries;
 	int line_count = line_counter(sub);
-	no_of_entries = (line_count-1)/5;	/*Computing the number of entries*/
+	no_of_entries = (line_count-1)/5;
 
 	//Entry data to display
 	char *entry_arxivno, *entry_title, *entry_abstract, *entry_authors;
@@ -430,7 +412,7 @@ void chosen_subjects(WINDOW *cho_win,int scl)
 	lsize = getline(&buf,&buf_size,sub_list);
 	while(lsize >=0)	
 	{
-		strncpy(menu_item,buf,strlen(buf)-1);
+		strcpy(menu_item,buf);
 		*(menu_item+strlen(buf)-1)='\0';
 
 	      	wmove(cho_win,kk-scl,0);
@@ -453,4 +435,96 @@ void clear_sublist()
 	FILE *sublist;
 	sublist = fopen("subjects.conf","w");
 	fclose(sublist);
+}
+
+void s_menu()
+{
+	FILE *sub_file;
+	WINDOW *menu_win, *cat_win, *sub_win, *cho_win; 
+	char smsub[] = "c - clear subjects";  
+	int cm = 0,csv = 0, sm = 0, ssv = 0;
+	int input;
+	char *cat, *sbj;
+	char *path = malloc(60*sizeof(char));
+	char *tpath = malloc(60*sizeof(char));
+
+	menu_win=bt_win("Subject Settings",LINES-5,COLS-4,5,2);
+	wbkgd(menu_win,COLOR_PAIR(2));
+	mvwaddstr(menu_win,1,COLS-25,smsub);
+	wrefresh(menu_win);
+	wbkgd(menu_win,COLOR_PAIR(4));
+	cat_win = derwin(menu_win,9,45,2,1); 
+	sub_win = derwin(menu_win,LINES-8,COLS-60,2,48);
+	cho_win = derwin(menu_win,LINES-20,45,14,1);
+	chosen_subjects(cho_win,0);
+		
+	wrefresh(cat_win);
+	wrefresh(cho_win);
+	cat = make_menu(cat_win,"cat_list",cm,csv);
+	wrefresh(cat_win);
+	input = getch();
+	while(input!='q') /*choose category*/
+	{	
+		free(cat);
+		cat = refresh_menu(cat_win,"cat_list",input,&cm,&csv);
+
+		if(input == 'c')
+		{
+			clear_sublist();
+			wclear(cho_win);
+			chosen_subjects(cho_win,0);
+			wrefresh(cho_win);
+		}
+		if(input=='\n')/*category selected, choose subject*/
+		{
+			
+			free(path);
+			path = join_strings("subjects/",cat);
+
+			//fetch array with subject settings
+			free(tpath);
+			tpath = join_strings("subjects/",cat);
+
+			sbj = make_menu(sub_win,path,sm,ssv);
+			wrefresh(sub_win);
+			input = getch();
+			while(input!='q')
+			{
+				if(input == 'c')
+				{
+					clear_sublist();
+					wclear(cho_win);
+					chosen_subjects(cho_win,0);
+					wrefresh(cho_win);
+				}
+				if(input == 'c')
+					clear_sublist();
+				if(input == '\n')/*subject selected, add to list*/
+				{
+					sub_file=fopen("subjects.conf","a");
+					fprintf(sub_file,"%s\n",strtok(sbj ," ,"));
+					fclose(sub_file);
+					chosen_subjects(cho_win,0);
+					wrefresh(cho_win);
+				}
+				free(sbj);
+				sbj = refresh_menu(sub_win,path,input,&sm,&ssv);
+				wrefresh(sub_win);
+				input = getch();
+			}
+			free(sbj);
+		}
+		sm = 0;
+		ssv = 0;
+		wclear(sub_win);
+		wrefresh(sub_win);
+		wrefresh(cat_win);
+		input = getch();
+	}
+	wclear(menu_win);
+	wrefresh(menu_win);
+	delwin(menu_win);
+	free(cat);
+	free(path);
+	free(tpath);
 }

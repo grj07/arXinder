@@ -48,6 +48,8 @@ void add_colour(int ncp,int qu)
 {
 	if(qu)
 		attron(COLOR_PAIR(ncp));
+	else
+		;
 }
 
 //removes colour if qu true (!=0)
@@ -55,11 +57,15 @@ void rem_colour(int ncp,int qu)
 {
 	if(qu)
 		attroff(COLOR_PAIR(ncp));
+	else
+		;
 }
 
 int line_counter(char *filename)
 {
 	FILE *f = fopen(filename, "r"); /*opening the first subject file*/
+	if(f==NULL)
+		return(0);
 	int total_lines=0;
 	char c;
 	for (c = getc(f); c != EOF; c = getc(f))
