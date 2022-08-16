@@ -16,6 +16,7 @@ int main(int argc, char *argv[])
 	//declaring principle windows to display
 	WINDOW *title_win, *auth_win, *abs_win; 
 	char chsub[] = "s - change subjects";  
+	char sor_inst[] = "Use backspace to reject, return to save";  
 
 	//User input for entry navigator
 	int input, mm, scrl, subq;
@@ -71,6 +72,7 @@ int main(int argc, char *argv[])
 	typewriter("v ",100);
 	typewriter(VERSION,100);
 	mvprintw(4,COLS-strlen(chsub),chsub);
+	mvprintw(3,COLS-strlen(sor_inst),sor_inst);
 	rem_colour(2,col);
 	refresh();
 
@@ -126,9 +128,8 @@ int main(int argc, char *argv[])
 	mm=1; /*start on first entry, scroll set to top, meaningless input*/
 	scrl=0;
 	input = '0';
-	sub_number = 0; /*subject number for subject_array*/
-	do	
-	{
+	int sub_number = 0; /*subject number for subject_array*/
+	do{
 		if(input == 's') 
 			s_menu();	/*Subject menu defined in pfuncs.c */
 		if(!line_counter("subjects.conf")) 	

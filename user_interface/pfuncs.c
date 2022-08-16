@@ -321,6 +321,7 @@ char *refresh_menu(WINDOW *menu_win,char* path_to_file,int m_input, int *mm, int
 //Navigator executes purpose of the program. Navigates arxiv entries
 void navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int input,int *entry_no, int *abs_scrl)
 {
+	FILE *saved_entries;
 	int no_of_entries;
 	int line_count = line_counter(sub);
 	no_of_entries = (line_count-1)/5;
@@ -332,16 +333,19 @@ void navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int input,
 
 	int ran; /*True when arxiv number needs to be refreshed*/
 
+	saved_entries = fopen("saved_entries.d","a");
 	switch(input) /*Needs to update abstract  sroll value, changes entry number*/
 	{
-		case KEY_LEFT:
-			*entry_no = *entry_no-1;
-			if(*entry_no<1)
-				*entry_no=no_of_entries;
+		case KEY_BACKSPACE:
+			*entry_no = *entry_no+1;
+			if(*entry_no>no_of_entries)
+				*entry_no=1;
 			entry_abstract = fetch_entry(sub,*entry_no,line_count,3);
 			ran = 1;
 			break;
-		case KEY_RIGHT:
+		case '\n':
+			entry_arxivno = fetch_entry(sub,*entry_no,line_count,0);
+			fprintf(saved_entries,"%s\n",entry_arxivno);
 			*entry_no = *entry_no+1;
 			if(*entry_no>no_of_entries)
 				*entry_no=1;
@@ -396,6 +400,7 @@ void navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int input,
 	free(entry_title);
 	free(entry_authors);
 	free(entry_abstract);
+	fclose(saved_entries);
 }
 
 void chosen_subjects(WINDOW *cho_win,int scl)
