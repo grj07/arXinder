@@ -3,7 +3,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <Python.h>
 #include "pfuncs.h"
 #include "gfuncs.h"
 
@@ -22,21 +21,6 @@
 #define LYELLOWG 855
 #define LYELLOWB 700
 
-
-//This function runs Python. Threaded with the title screen and navigator
-void *call_datprc()
-{
-	char filename[] = "datprc.py";
-	FILE* fp;
-
-	Py_Initialize();
-
-	fp = fopen(filename, "r");
-	PyRun_SimpleFile(fp, filename);
-
-	Py_Finalize();
-	return NULL;
-}
 
 int colours() /*Colours checks if the terminal can do colours, and returns 1 if so*/
 {
@@ -62,70 +46,6 @@ int colours() /*Colours checks if the terminal can do colours, and returns 1 if 
 	return(qu);
 }
 
-void *title_screen(void *col)
-{
-	int coli = *(int *)col;
-	char title1[]="ar";
-	char title2[]="inder";
-	char subtitle[]="sort and file the new papers from the arXiv.";
-	int disp = (strlen(title1)+strlen(title2)+1)/2;
-	int kk;
-
-	curs_set(0);
-	move(LINES/2,COLS/2-disp);
-	add_colour(1,coli);
-	typewriter(title1,120);
-	refresh();
-	add_colour(2,coli);
-	attron(A_BOLD);
-	move(LINES/2-1,COLS/2-disp-1+strlen(title1));
-	addch('\\');
-	move(LINES/2+1,COLS/2-disp-1 +strlen(title1));
-	addch('/');
-	move(LINES/2+1,COLS/2-disp+1+strlen(title1));
-	addch('\\');
-	move(LINES/2-1,COLS/2-disp+1 +strlen(title1));
-	addch('/');
-	move(LINES/2,COLS/2-disp+strlen(title1));
-	addch('X');
-	refresh();
-	usleep(100000);
-	
-	attroff(A_BOLD);
-	add_colour(1,coli);
-	typewriter(title2,120);
-	
-	usleep(500000);
-	add_colour(3,coli);
-	move(LINES/2+2,COLS/2-strlen(subtitle)/2);
-	typewriter(subtitle,30);
-	move(1,1);
-	for(kk=1;kk<=LINES/2-2;kk++)
-	{
-		deleteln();
-		refresh();
-		usleep(20000);
-	}
-	for(kk=1;kk<=COLS/2-disp-1;kk++)
-	{
-		delch();
-		move(2,1);
-		delch();
-		move(3,1);
-		delch();
-		move(4,1);
-		delch();
-		move(1,1);
-		refresh();
-		usleep(20000);
-	}
-	refresh();
-	noecho();
-	move(4,strlen(subtitle)/2+strlen(title1)/2+1+strlen(title2)/2);
-	delch();
-	insch(':');
-	refresh();
-}
 
 //Bordered window with content
 WINDOW *bt_win(char *title, int height, int width, int ypos,int xpos)
@@ -216,6 +136,8 @@ char *fetch_entry(char* sub,int entry_no, int line_count,int etype)
 	int lvar = (entry_no-1)*5+2+etype;
 	int kk;
 	sub_file = fopen(sub,"r");
+	if(!sub_file)
+		bomb("error: cannot find entries, please check network connection");
 	//loop ends when correct line reached
 	for(kk=0;kk<=lvar;kk++) 
 	{

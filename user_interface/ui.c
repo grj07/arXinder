@@ -1,9 +1,8 @@
 #include <ncurses.h> /*ncurses library, includes stdio.h*/
 #include <math.h>    /*Floor and ceilings*/
-#include <string.h>  /*string manipulations str...*/
-#include <stdlib.h>  /*dynamic memory allocation malloc*/
 #include <pthread.h>
 #include <time.h>
+#include <Python.h>
 #include <unistd.h>
 #include "gfuncs.h"
 #include "pfuncs.h"
@@ -11,8 +10,89 @@
 #define NTHREADS  2
 #define VERSION "0.0.3"
 
-int main(int argc, char *argv[])
+//This function runs Python script, threads with the user interface
+void *call_datprc(void *pyscript)
 {
+	char *scriptname = (char *)pyscript;
+	FILE* fp;
+
+	Py_Initialize();
+
+	fp = fopen(scriptname, "r");
+	PyRun_SimpleFile(fp, scriptname);
+
+	Py_Finalize();
+	return NULL;
+}
+
+void *title_screen(void * colo)
+{
+	int col = *(int *)colo;
+	char title1[]="ar";
+	char title2[]="inder";
+	char subtitle[]="sort and file the new papers from the arXiv.";
+	int disp = (strlen(title1)+strlen(title2)+1)/2;
+	int kk;
+
+	curs_set(0);
+	move(LINES/2,COLS/2-disp);
+	add_colour(1,col);
+	typewriter(title1,120);
+	refresh();
+	add_colour(2,col);
+	attron(A_BOLD);
+	move(LINES/2-1,COLS/2-disp-1+strlen(title1));
+	addch('\\');
+	move(LINES/2+1,COLS/2-disp-1 +strlen(title1));
+	addch('/');
+	move(LINES/2+1,COLS/2-disp+1+strlen(title1));
+	addch('\\');
+	move(LINES/2-1,COLS/2-disp+1 +strlen(title1));
+	addch('/');
+	move(LINES/2,COLS/2-disp+strlen(title1));
+	addch('X');
+	refresh();
+	usleep(100000);
+	
+	attroff(A_BOLD);
+	add_colour(1,col);
+	typewriter(title2,120);
+	
+	usleep(500000);
+	add_colour(3,col);
+	move(LINES/2+2,COLS/2-strlen(subtitle)/2);
+	typewriter(subtitle,30);
+	move(1,1);
+	for(kk=1;kk<=LINES/2-2;kk++)
+	{
+		deleteln();
+		refresh();
+		usleep(20000);
+	}
+	for(kk=1;kk<=COLS/2-disp-1;kk++)
+	{
+		delch();
+		move(2,1);
+		delch();
+		move(3,1);
+		delch();
+		move(4,1);
+		delch();
+		move(1,1);
+		refresh();
+		usleep(20000);
+	}
+	refresh();
+	noecho();
+	move(4,strlen(subtitle)/2+strlen(title1)/2+1+strlen(title2)/2);
+	delch();
+	insch(':');
+	refresh();
+}
+
+void *user_interface(void * colo)
+{
+	int col = *(int *)colo;
 	//declaring principle windows to display
 	WINDOW *title_win, *auth_win, *abs_win; 
 	char chsub[] = "s - change subjects";  
@@ -21,6 +101,7 @@ int main(int argc, char *argv[])
 	//User input for entry navigator
 	int input, mm, scrl, subq;
 
+	//int col = *(int *)colo;
 
 	//This needs to become an array of pointers to subject strings. 
 	char *sub; /*the current subject area being explored*/
@@ -29,48 +110,6 @@ int main(int argc, char *argv[])
 
 
 	//initialise ncurses mode
-	initscr();			
-
-	int col;
-	col = colours(); /*col=0 is black and white mode*/
-	keypad(stdscr, TRUE);		
-	noecho();
-	curs_set(0);
-
-	while(!line_counter("subjects.conf")) 	
-	{
-		move(1,20);
-		printw("Please choose at least one subject area");
-		refresh();
-		move(1,20);
-		s_menu();
-		clear_text(40);
-	}
-
-
-
-	;
-	int ii, rc;
-	pthread_t threads[NTHREADS];
-
-
-	  /* threading title-screen with python script */
-
-	rc = pthread_create(&threads[0], NULL, call_datprc,NULL);
-	//Title screen on opening
-	rc = pthread_create(&threads[1], NULL, title_screen,&col);
-	
-	/* wait for threads to finish */
-	for (ii=0; ii<NTHREADS; ii++) 
-	{
-		rc = pthread_join(threads[ii], NULL);
-	}
-
-
-	add_colour(2,col);
-	move(2,10);
-	typewriter("v ",100);
-	typewriter(VERSION,100);
 	mvprintw(4,COLS-strlen(chsub),chsub);
 	mvprintw(3,COLS-strlen(sor_inst),sor_inst);
 	rem_colour(2,col);
@@ -98,7 +137,7 @@ int main(int argc, char *argv[])
 
 	FILE *fp;
 	fp= fopen("subjects.conf","r");
-	ii=0;
+	int ii=0;
 	line_size = getline(&line_buffer,&lbsize,fp);
 	subject_array[ii] = malloc((strlen(line_buffer))*sizeof(char));
 	strncpy(subject_array[ii],line_buffer,strlen(line_buffer)-1);
@@ -163,5 +202,57 @@ int main(int argc, char *argv[])
 		free(subject_array[ii]);
 	}
 	free(line_buffer);
+}
+
+int main()
+{
+	int ii, rc, col;
+
+	initscr();			
+
+	col = colours(); /*col=0 is black and white mode*/
+	keypad(stdscr, TRUE);		
+	noecho();
+	curs_set(0);
+
+	while(!line_counter("subjects.conf")) 	
+	{
+		move(1,20);
+		printw("Please choose at least one subject area");
+		refresh();
+		move(1,20);
+		s_menu();
+		clear_text(40);
+	}
+
+	//Title screen on opening
+	char fent[] = "fent.py";
+	char rent[] = "rent.py";
+	pthread_t threads[NTHREADS];
+	rc = pthread_create(&threads[0], NULL, call_datprc,fent);
+	rc = pthread_create(&threads[1], NULL, title_screen,&col);
+	
+	/* wait for threads to finish */
+	for (ii=0; ii<NTHREADS; ii++) 
+	{
+		rc = pthread_join(threads[ii], NULL);
+	}
+
+	add_colour(2,col);
+	move(2,10);
+	typewriter("v ",100);
+	typewriter(VERSION,100);
+
+	pthread_t uthreads[NTHREADS];
+	rc = pthread_create(&uthreads[0], NULL, call_datprc,rent);
+	rc = pthread_create(&uthreads[1], NULL, user_interface,&col);
+	
+	/* wait for threads to finish */
+	for (ii=0; ii<NTHREADS; ii++) 
+	{
+		rc = pthread_join(uthreads[ii], NULL);
+	}
+
+
 	return 0;
 }
