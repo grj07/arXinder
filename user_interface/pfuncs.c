@@ -63,7 +63,15 @@ void update_subs(int n, char *sub_array[],int nsubs) /*returns the subject to ex
 {
 	int jj=0;
 	int ll=0;
-	int dm;
+	int dm, ctot;
+	ctot = strlen(sub_array[n])+5;
+	for(jj=n+1;jj<nsubs+n;jj++)
+	{
+		ll = jj % nsubs;
+		ctot = ctot + max(strlen(sub_array[ll])+5,0);
+	}
+	move(2,20);
+	clear_text(ctot);
 	attron(A_BOLD);
 	mvprintw(2,20,sub_array[n]);
 	attroff(A_BOLD);
@@ -169,8 +177,8 @@ char *make_menu(WINDOW *mwin,char *path_to_file,int item, int scl)
 	lsize = getline(&buf,&buf_size,menu_list);
 	while(lsize >=0)	
 	{
-		strcpy(menu_item,buf);
-		*(menu_item+strlen(buf)-1)='\0';/*no pesky newline character*/
+		strncpy(menu_item,buf,ww-1);
+		*(menu_item+min(strlen(buf)-1,ww-1))='\0';/*no pesky newline character*/
 
 	      	wmove(mwin,kk-scl,0);/*clear old menu item in this spot*/
 		wclrtoeol(mwin);
@@ -240,89 +248,150 @@ char *refresh_menu(WINDOW *menu_win,char* path_to_file,int m_input, int *mm, int
 	return(categ); /*memory freed in main*/
 }
 
-//Navigator executes purpose of the program. Navigates arxiv entries
-void navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int input,int *entry_no, int *abs_scrl)
+typedef struct entry
+{
+	char arxiv_no[12];
+	char title[300];
+	char authors[3000];
+	char abstract[2000];
+}entry;
+
+entry *fetch_entries(char *subject,int no_of_entries)
+{
+	FILE *s_file; /*subject file containing entries*/
+	int line_count = 5*no_of_entries+1;
+
+	entry *entries= malloc(no_of_entries*sizeof(entry));
+
+	char *line_buffer = NULL; /*line buffer is filled with line from file using getline*/
+	size_t lb_size;
+	int line_length;
+
+	int kk, typ;
+	int ent_count = 0;
+	s_file = fopen(subject,"r");
+	if(!s_file)
+		bomb("error: cannot find entries, please check network connection");
+	//loop through entries, putting arxiv number, authors, etc in appropriate struct 
+	getline(&line_buffer, &lb_size, s_file);
+	for(kk=1;kk<=line_count;kk++) 
+	{
+		getline(&line_buffer, &lb_size, s_file);
+		line_length = strlen(line_buffer);
+		if(kk>1)
+			typ = (kk-2)%5;
+		else
+			typ = 9;
+		switch(typ)
+		{
+			case 0:
+				strcpy(entries[ent_count].arxiv_no,line_buffer);
+				entries[ent_count].arxiv_no[line_length-1]='\0';
+				break;
+			case 1:
+				strcpy(entries[ent_count].title,line_buffer);
+				entries[ent_count].title[line_length-1]='\0';
+				break;
+			case 2:
+				strcpy(entries[ent_count].authors,line_buffer);
+				entries[ent_count].authors[line_length-1]='\0';
+				break;
+			case 3:
+				strcpy(entries[ent_count].abstract,line_buffer);
+				entries[ent_count].abstract[line_length-1]='\0';
+				break;
+			case 4:
+				ent_count++;
+				break;
+		}
+	}
+	fclose(s_file);
+	return(entries);
+}
+//Navigator browses arxiv entries
+bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input,int *entry_no)
 {
 	FILE *saved_entries;
-	int no_of_entries;
 	int line_count = line_counter(sub);
-	no_of_entries = (line_count-1)/5;
+	int no_of_entries = line_count/5;
 
 	//Entry data to display
-	char *entry_arxivno, *entry_title, *entry_abstract, *entry_authors;
+	entry *entries = fetch_entries(sub,no_of_entries);
+	int abs_scrl=0;
 
-	ecount_update(*entry_no,no_of_entries); /*update the displayed entry number*/
-
-	int ran; /*True when arxiv number needs to be refreshed*/
+	bool ran=1; /*True when arxiv number needs to be refreshed*/
+	bool fin=0; /*True when end of subject area reached*/
+	bool chsub=0;/*True when the entries are finished*/
 
 	saved_entries = fopen("saved_entries.d","a");
-	switch(input) /*Needs to update abstract  sroll value, changes entry number*/
+	while(!fin)
 	{
-		case KEY_BACKSPACE:
-			*entry_no = *entry_no+1;
-			if(*entry_no>no_of_entries)
-				*entry_no=1;
-			entry_abstract = fetch_entry(sub,*entry_no,line_count,3);
-			ran = 1;
-			break;
-		case '\n':
-			entry_arxivno = fetch_entry(sub,*entry_no,line_count,0);
-			fprintf(saved_entries,"%s\n",entry_arxivno);
-			*entry_no = *entry_no+1;
-			if(*entry_no>no_of_entries)
-				*entry_no=1;
-			entry_abstract = fetch_entry(sub,*entry_no,line_count,3);
-			ran = 1;
-			break;
-		case KEY_DOWN:
-			*entry_no = *entry_no;
-			entry_abstract = fetch_entry(sub,*entry_no,line_count,3);
-			*abs_scrl = new_scroll_value(abswin,entry_abstract,*abs_scrl+1);
-			ran = 0;
-			break;
-		case KEY_UP:
-			*entry_no = *entry_no;
-			entry_abstract = fetch_entry(sub,*entry_no,line_count,3);
-			*abs_scrl = new_scroll_value(abswin,entry_abstract,*abs_scrl-1);
-			ran = 0;
-			break;
-		case '0':
-			entry_abstract = fetch_entry(sub,*entry_no,line_count,3);
-			ran=1;
-			break;
-		default:
-			entry_abstract = fetch_entry(sub,*entry_no,line_count,3);
+		//refreshing displayed windows
+		ecount_update(*entry_no,no_of_entries);
+		update_win(twin,entries[*entry_no-1].title, abs_scrl);
+		update_win(authwin,entries[*entry_no-1].authors,abs_scrl);
+		update_win(abswin,entries[*entry_no-1].abstract,abs_scrl);
+		if(ran)
+		{
+			attron(A_BOLD);
+			move(4,28);
+			clear_text(10);
+			move(4,28);
+			typewriter(entries[*entry_no-1].arxiv_no,40);
+			attroff(A_BOLD);
 			ran=0;
-			break;
-	}
-	//entry data goes to respective strings
-	entry_arxivno = fetch_entry(sub,*entry_no,line_count,0);
-	entry_title = fetch_entry(sub,*entry_no,line_count,1);
-	entry_authors = fetch_entry(sub,*entry_no,line_count,2);
+		}
+		wrefresh(twin);
+		wrefresh(authwin);
+		wrefresh(abswin);
 
-	//refreshing displayed windows
-	ecount_update(*entry_no,no_of_entries);
-	update_win(twin,entry_title, *abs_scrl);
-	update_win(authwin,entry_authors,*abs_scrl);
-	update_win(abswin,entry_abstract,*abs_scrl);
-	if(ran)
-	{
-		attron(A_BOLD);
-		move(4,28);
-		clear_text(10);
-		move(4,28);
-		typewriter(entry_arxivno,40);
-		attroff(A_BOLD);
-		ran=0;
+		*input = getch();
+		switch(*input) /*Updates abstract  sroll value, changes entry number*/
+		{
+			case KEY_BACKSPACE:
+				*entry_no= *entry_no+1;
+				if(*entry_no>no_of_entries)
+				{
+					chsub = 1;
+					fin = 1;
+				}
+				abs_scrl = 0;
+				ran = 1;
+				break;
+			case '\n':
+				fprintf(saved_entries,"%s\n",entries[*entry_no-1].arxiv_no);
+				*entry_no=*entry_no+1;
+				if(*entry_no>no_of_entries)
+				{
+					chsub = 1;
+					fin = 1;
+				}
+				abs_scrl = 0;
+				ran = 1;
+				break;
+			case KEY_DOWN:
+				abs_scrl = new_scroll_value(abswin,entries[*entry_no-1].abstract,abs_scrl+1);
+				ran = 0;
+				break;
+			case KEY_UP:
+				abs_scrl = new_scroll_value(abswin,entries[*entry_no-1].abstract,abs_scrl-1);
+				ran = 0;
+				break;
+			case 's':
+				fin = 1;
+			case 'q':
+				fin = 1;
+			case '0':
+				ran=1;
+				break;
+			default:
+				ran=0;
+				break;
+		}
 	}
-	wrefresh(twin);
-	wrefresh(authwin);
-	wrefresh(abswin);
-	free(entry_arxivno);
-	free(entry_title);
-	free(entry_authors);
-	free(entry_abstract);
 	fclose(saved_entries);
+	free(entries);
+	return(chsub);
 }
 
 void chosen_subjects(WINDOW *cho_win,int scl)
@@ -375,6 +444,9 @@ void s_menu()
 	char *path = malloc(60*sizeof(char));
 	char *tpath = malloc(60*sizeof(char));
 
+	move(0,5);
+	printw("Please restart program to enact changes");
+	refresh();
 	menu_win=bt_win("Subject Settings",LINES-5,COLS-4,5,2);
 	wbkgd(menu_win,COLOR_PAIR(2));
 	mvwaddstr(menu_win,1,COLS-25,smsub);
@@ -454,4 +526,7 @@ void s_menu()
 	free(cat);
 	free(path);
 	free(tpath);
+	move(0,5);
+	clear_text(40);
+	refresh();
 }

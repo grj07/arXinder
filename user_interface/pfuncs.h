@@ -9,7 +9,7 @@ extern char *fetch_entry(char* sub,int entry_no, int line_count,int etype);
 extern char *make_menu(WINDOW *mwin,char *path_to_file,int item, int scl);
 extern char *refresh_menu(WINDOW *menu_win,char* path_to_file,int m_input, int *mm, int *sv);
 extern void category_menu(WINDOW *menu_win);
-extern void navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int input, int *entry_no, int *abs_scrl);
+extern bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input, int *entry_no);
 extern void chosen_subjects(WINDOW *cho_win, int scl);
 extern void clear_sublist();
 extern void s_menu();

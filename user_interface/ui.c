@@ -1,9 +1,10 @@
+#include <Python.h>
 #include <ncurses.h> /*ncurses library, includes stdio.h*/
 #include <math.h>    /*Floor and ceilings*/
 #include <pthread.h>
 #include <time.h>
-#include <Python.h>
 #include <unistd.h>
+#include <locale.h>
 #include "gfuncs.h"
 #include "pfuncs.h"
 
@@ -95,7 +96,7 @@ void *user_interface(void * colo)
 	int col = *(int *)colo;
 	//declaring principle windows to display
 	WINDOW *title_win, *auth_win, *abs_win; 
-	char chsub[] = "s - change subjects";  
+	char sub_inst[] = "s - change subjects";  
 	char sor_inst[] = "Use backspace to reject, return to save";  
 
 	//User input for entry navigator
@@ -110,7 +111,7 @@ void *user_interface(void * colo)
 
 
 	//initialise ncurses mode
-	mvprintw(4,COLS-strlen(chsub),chsub);
+	mvprintw(4,COLS-strlen(sub_inst),sub_inst);
 	mvprintw(3,COLS-strlen(sor_inst),sor_inst);
 	rem_colour(2,col);
 	refresh();
@@ -152,11 +153,6 @@ void *user_interface(void * colo)
 	}
 	fclose(fp);
 
-	sub = subject_array[0];
-
-	//Subject area metadata
-	int *line_count[nsubs-1];
-	int *no_of_entries[nsubs-1];
 
 	update_subs(0,subject_array ,nsubs);
 
@@ -167,10 +163,12 @@ void *user_interface(void * colo)
 	mm=1; /*start on first entry, scroll set to top, meaningless input*/
 	scrl=0;
 	input = '0';
-	int sub_number = 0; /*subject number for subject_array*/
+	int sub_no = 0; /*subject number for subject_array*/
+	bool chsub=0;
 	do{
 		if(input == 's') 
 			s_menu();	/*Subject menu defined in pfuncs.c */
+		//Need to reload subjects if they change.
 		if(!line_counter("subjects.conf")) 	
 		{
 			move(1,20);
@@ -188,16 +186,26 @@ void *user_interface(void * colo)
 		touchwin(abs_win);
 	
 		//Navigator explores entries, defined in pfuncs.c
-		navigator(title_win,auth_win,abs_win,sub,input,&mm,&scrl); 
-	
-		input = getch();
+		if(chsub)
+		{
+			sub_no++;
+			if(sub_no>= nsubs)
+			{
+				break;
+			}
+			chsub =0;
+			mm=1;
+			update_subs(sub_no,subject_array ,nsubs);
+		}
+		sub = subject_array[sub_no];
+		chsub = navigator(title_win,auth_win,abs_win,sub,&input,&mm); 
 	}while(input!='q');
 
 
 
-	endwin();			/* End curses mode		  */
+	endwin();	/* quit ncurses */
 
-	for(ii=0;ii<=nsubs;ii++)
+	for(ii=0;ii<nsubs;ii++)
 	{
 		free(subject_array[ii]);
 	}
@@ -208,14 +216,16 @@ int main()
 {
 	int ii, rc, col;
 
+        setlocale(LC_ALL, "");
 	initscr();			
 
-	col = colours(); /*col=0 is black and white mode*/
+	//col = colours(); 
+	col = 0; /*col=0 is black and white mode*/
 	keypad(stdscr, TRUE);		
 	noecho();
 	curs_set(0);
 
-	while(!line_counter("subjects.conf")) 	
+	while(!(line_counter("subjects.conf"))) 	
 	{
 		move(1,20);
 		printw("Please choose at least one subject area");
