@@ -218,6 +218,8 @@ int main()
 
         setlocale(LC_ALL, "");
 	initscr();			
+	if(COLS<80||LINES<20)
+		bomb("Terminal too small, please use a larger terminal");
 
 	//col = colours(); 
 	col = 0; /*col=0 is black and white mode*/
