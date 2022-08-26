@@ -13,19 +13,18 @@ Version 0.0.1:
 
 Basic idea of program contains two aspects (in seperate directories for now):
 
-1)data_processing is for managing the reference data, this will be written in python,
+1. data_processing is for managing the reference data, this will be written in python,
   but the data format etc is tbd (will depend on inSpire and arXiv API, standard usage
   in reference management software). 
   Very basic version here takes the daiy arxiv email and turns it into a simple format for
   the C user interface to read. Files here are:
-
  - daily_email.dat is the downloaded daily email from the arxiv with new hep-th and 
  hep-ph publications.
 
  - datprc.py is a python program which takes daily_email.dat and produces prcd.dat,
  which is correctly formatted for the user interface
         
-2) user_interface is a program written in ncurses (C) which prints prc.dat on the output,
+2. user_interface is a program written in ncurses (C) which prints prc.dat on the output,
   and one can seek left and right through the entries. The final intent here is to write this
   for an app like tinder so that people can swipe right and left on arxiv papers they are interested
   in or don't care about. This would be integrated with some form of reference data base and have basic
