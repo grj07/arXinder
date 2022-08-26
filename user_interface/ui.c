@@ -11,7 +11,7 @@
 #define NTHREADS  2
 #define VERSION "0.0.3"
 
-//This function runs Python script, threads with the user interface
+//This function runs Python script
 void *call_datprc(void *pyscript)
 {
 	char *scriptname = (char *)pyscript;
@@ -26,6 +26,7 @@ void *call_datprc(void *pyscript)
 	return NULL;
 }
 
+//Title screen: animation while first subject entries load
 void *title_screen(void * colo)
 {
 	int col = *(int *)colo;
@@ -36,6 +37,7 @@ void *title_screen(void * colo)
 	int kk;
 
 	curs_set(0);
+	//arXinder title
 	move(LINES/2,COLS/2-disp);
 	add_colour(1,col);
 	typewriter(title1,120);
@@ -59,17 +61,21 @@ void *title_screen(void * colo)
 	add_colour(1,col);
 	typewriter(title2,120);
 	
+	//Subtitle
 	usleep(500000);
 	add_colour(3,col);
 	move(LINES/2+2,COLS/2-strlen(subtitle)/2);
 	typewriter(subtitle,30);
 	move(1,1);
+
+	//Delete lines gradually
 	for(kk=1;kk<=LINES/2-2;kk++)
 	{
 		deleteln();
 		refresh();
 		usleep(20000);
 	}
+	//Delete columns gradually
 	for(kk=1;kk<=COLS/2-disp-1;kk++)
 	{
 		delch();
@@ -96,6 +102,7 @@ void *user_interface(void * colo)
 	int col = *(int *)colo;
 	//declaring principle windows to display
 	WINDOW *title_win, *auth_win, *abs_win; 
+	//Instructions displayed
 	char sub_inst[] = "s - change subjects";  
 	char sor_inst[] = "Use backspace to reject, return to save";  
 
@@ -110,7 +117,6 @@ void *user_interface(void * colo)
 
 
 
-	//initialise ncurses mode
 	mvprintw(4,COLS-strlen(sub_inst),sub_inst);
 	mvprintw(3,COLS-strlen(sor_inst),sor_inst);
 	rem_colour(2,col);
@@ -216,7 +222,8 @@ int main()
 {
 	int ii, rc, col;
 
-        setlocale(LC_ALL, "");
+        setlocale(LC_ALL, ""); /*Probably unnecessary*/
+	//initialise ncurses mode
 	initscr();			
 	if(COLS<80||LINES<20)
 		bomb("Terminal too small, please use a larger terminal");
