@@ -29,8 +29,8 @@ def auth_string(auth_list):
     else:
         app = ""
         for ii in range(len(auth_list)-1):
-            app = app + auth_list[ii]+ ", "
-        app = app + "and "+auth_list[-1]
+            app = app + auth_list[ii]+ ","
+        app = app + auth_list[-1]
     return app
 
 #Checks subject areas for overlaps to avoid doubling up entries

@@ -134,28 +134,6 @@ void update_win(WINDOW *win,char *new_content, int scm)
 	wrefresh(win);
 }
 
-//Fetches entry from the subject file
-char *fetch_entry(char* sub,int entry_no, int line_count,int etype)
-{
-	FILE *sub_file;
-	char *line_buffer = NULL; /*line buffer is filled with line from file using getline*/
-	size_t lb_size;
-	ssize_t line_size=0;
-	int lvar = (entry_no-1)*5+2+etype;
-	int kk;
-	sub_file = fopen(sub,"r");
-	if(!sub_file)
-		bomb("error: cannot find entries, please check network connection");
-	//loop ends when correct line reached
-	for(kk=0;kk<=lvar;kk++) 
-	{
-		line_size = getline(&line_buffer, &lb_size, sub_file);
-	}
-	fclose(sub_file);
-	line_buffer[line_size-1]='\0';
-	return(line_buffer);
-}
-
 //make_menu prints an instant of the window to mwin, and returns name of
 //menu item for use in file path
 char *make_menu(WINDOW *mwin,char *path_to_file,int item, int scl)
@@ -252,7 +230,7 @@ typedef struct entry
 {
 	char arxiv_no[12];
 	char title[300];
-	char authors[3000];
+	char authors[300][50];
 	char abstract[2000];
 }entry;
 
@@ -261,13 +239,16 @@ entry *fetch_entries(char *subject,int no_of_entries)
 	FILE *s_file; /*subject file containing entries*/
 	int line_count = 5*no_of_entries+1;
 
-	entry *entries= malloc(no_of_entries*sizeof(entry));
+	entry *entries= calloc(no_of_entries,sizeof(entry));
 
 	char *line_buffer = NULL; /*line buffer is filled with line from file using getline*/
+	char *auth_token = NULL;
+	char authbuf[3000];
+	const char delim[2] = ",";
 	size_t lb_size;
 	int line_length;
 
-	int kk, typ;
+	int kk, jj, typ;
 	int ent_count = 0;
 	s_file = fopen(subject,"r");
 	if(!s_file)
@@ -293,8 +274,18 @@ entry *fetch_entries(char *subject,int no_of_entries)
 				entries[ent_count].title[line_length-1]='\0';
 				break;
 			case 2:
-				strcpy(entries[ent_count].authors,line_buffer);
-				entries[ent_count].authors[line_length-1]='\0';
+				strcpy(authbuf,line_buffer);
+				authbuf[line_length-1]='\0';
+				auth_token = strtok(authbuf,delim);
+				refresh();
+				jj = 0;
+				while(auth_token!=NULL)
+				{
+					strcpy(entries[ent_count].authors[jj],auth_token);
+					entries[ent_count].authors[jj][strlen(auth_token)]='\0';
+					auth_token = strtok(NULL,delim);
+					jj++;
+				}
 				break;
 			case 3:
 				strcpy(entries[ent_count].abstract,line_buffer);
@@ -315,6 +306,14 @@ bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input
 	int line_count = line_counter(sub);
 	int no_of_entries = line_count/5;
 
+	//Reading the parameters of the windows for accurate display
+	int authwin_h, authwin_w;
+	getmaxyx(authwin,authwin_h,authwin_w);
+	authwin_h = authwin_h -3;
+	authwin_w = authwin_w -4;
+	char auth_str[authwin_h*authwin_w];
+	int kk, jj, atot, auth_l;
+
 	//Entry data to display
 	entry *entries = fetch_entries(sub,no_of_entries);
 	int abs_scrl=0;
@@ -329,7 +328,21 @@ bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input
 		//refreshing displayed windows
 		ecount_update(*entry_no,no_of_entries);
 		update_win(twin,entries[*entry_no-1].title, abs_scrl);
-		update_win(authwin,entries[*entry_no-1].authors,abs_scrl);
+		atot = 0;
+		for(kk=0;kk<authwin_h;kk++)
+		{
+			if(!entries[*entry_no-1].authors[kk][0])
+				break;
+			auth_l = strlen(entries[*entry_no-1].authors[kk]);
+			for(jj=0;jj<auth_l;jj++)
+			{
+				auth_str[atot+jj]=entries[*entry_no-1].authors[kk][jj];
+			}
+			auth_str[atot+auth_l]='\n';
+			atot = atot + auth_l+1;
+		}
+		auth_str[atot] = '\0';
+		update_win(authwin,auth_str,abs_scrl);
 		update_win(abswin,entries[*entry_no-1].abstract,abs_scrl);
 		if(ran)
 		{
