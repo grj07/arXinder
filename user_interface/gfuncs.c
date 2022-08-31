@@ -85,14 +85,14 @@ void clear_text(int length)
 }
 
 //New scroll value stops scrolling past top or bottom of text
-int new_scroll_value(WINDOW *win,char *content,int scv)
+int new_scroll_value(WINDOW *win,int tot_lines,int scv)
 {
-	int  height,width;
+	int  height;
 	int scl;
-	getmaxyx(win,height,width);
-	scl = max(0,scv);
-	scl = min(strlen(content)/(width-4)-(height-4),scl);
-	return((int)scl);
+	getmaxyx(win,height,scl);
+	scl = min(tot_lines - (height-3),scv);
+	scl = max(0,scl);
+	return(scl);
 }
 
 //Returns the concatenated strings string_1 string_2
@@ -117,4 +117,60 @@ char *join_strings(char *string_1, char *string_2)
 	}
 	*(string+stsize)='\0';/*capping string with end character*/
 	return(string);
+}
+
+//Returns number of lines in array. Sets line array to list of strings with whole words
+char **to_lines(char *content, int line_width , int *no_of_lines)
+{
+	int cc=0, lc =1,ccmax =strlen(content);
+	int *nl_pos= malloc(sizeof(int)*ccmax); /*an array the size of the content isn't going to be too small*/
+	int prev_newline_pos = 0;
+	int prev_space_pos = 0;
+	nl_pos[0]=-1;
+	for(cc = 0; cc < ccmax; cc++) /*populates array with (ought-to-be) new-line char positions*/
+	{
+		if((char) content[cc]==' ')	
+		{
+			if(cc-prev_newline_pos>=line_width)
+			{
+				nl_pos[lc] = prev_space_pos;
+				prev_newline_pos = nl_pos[lc];
+				lc++;
+			}
+			prev_space_pos = cc;
+		}
+	}	
+	if(ccmax-prev_newline_pos>=line_width)
+	{
+		nl_pos[lc] = prev_space_pos;
+		lc++;
+	}
+	//Now lc gives number of lines, nl_pos[i<lc] gives end of line positions 
+	*no_of_lines = lc;
+	nl_pos[*no_of_lines]=ccmax;
+	//move(1,5);
+	//printw("The new line goes at %d",nl_pos[1]);
+	//refresh();
+
+	//to copy lines to array
+	size_t line_size = (line_width+1)*sizeof(char);
+	char *line_array_chs = calloc((*no_of_lines)*(line_width+1),sizeof(char));
+	char **line_array_lines = malloc(sizeof(char *)*(*no_of_lines));
+	for(lc = 0;lc<*no_of_lines;lc++)
+	{
+		for(cc = 0;cc<nl_pos[lc+1]-nl_pos[lc]-1;cc++) /*copies first line*/
+		{
+			*(line_array_chs+cc+lc*line_size) = content[cc+nl_pos[lc]+1];
+		}
+		line_array_chs[lc*line_size+nl_pos[lc+1]-nl_pos[lc]]='\0';
+		*(line_array_lines+lc) = line_array_chs+lc*line_size;
+	}
+	free(nl_pos);
+	return(line_array_lines);
+}
+
+void free_lines(char **lines_buf)
+{
+	free(*lines_buf);
+	free(lines_buf);
 }

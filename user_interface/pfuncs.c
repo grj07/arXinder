@@ -134,6 +134,41 @@ void update_win(WINDOW *win,char *new_content, int scm)
 	wrefresh(win);
 }
 
+void update_winb(WINDOW *win,char **new_content, int no_of_lines,int scm, char * scrl_inst)
+{
+	WINDOW *c_win;
+	int height, width;
+	int instl = strlen(scrl_inst);
+	int lc,kk, lmax;
+
+	getmaxyx(win,height,width); 	/*measures size of window*/
+	lmax = min(height-3,no_of_lines); /*last line printed to window*/
+
+	if(no_of_lines>height-3) /*case where too much content for window - display scrolling instructions*/
+	{
+		mvwaddstr(win , 1, width- instl-1,scrl_inst);
+	}
+	else /*otherwise no instructions*/
+	{
+		wmove(win,1, width- instl-1);
+		for(kk=0;kk<instl;kk++)
+		{
+			waddch(win,' ');
+		}
+	}
+
+	c_win = derwin(win,height-3,width-4,2,2);
+	wbkgd(c_win,COLOR_PAIR(4));
+	wclear(c_win);
+	//wattron(c_win,A_BOLD);
+	for(lc=scm;lc<lmax+scm;lc++)
+	{
+		mvwaddstr(c_win,lc-scm,0,new_content[lc]);
+	}
+	wattroff(c_win,A_BOLD);
+	wrefresh(win);
+	wrefresh(c_win);
+}
 //make_menu prints an instant of the window to mwin, and returns name of
 //menu item for use in file path
 char *make_menu(WINDOW *mwin,char *path_to_file,int item, int scl)
@@ -230,7 +265,7 @@ typedef struct entry
 {
 	char arxiv_no[12];
 	char title[300];
-	char authors[300][50];
+	char authors[3000];
 	char abstract[2000];
 }entry;
 
@@ -242,13 +277,10 @@ entry *fetch_entries(char *subject,int no_of_entries)
 	entry *entries= calloc(no_of_entries,sizeof(entry));
 
 	char *line_buffer = NULL; /*line buffer is filled with line from file using getline*/
-	char *auth_token = NULL;
-	char authbuf[3000];
-	const char delim[2] = ",";
 	size_t lb_size;
 	int line_length;
 
-	int kk, jj, typ;
+	int kk, typ;
 	int ent_count = 0;
 	s_file = fopen(subject,"r");
 	if(!s_file)
@@ -274,18 +306,8 @@ entry *fetch_entries(char *subject,int no_of_entries)
 				entries[ent_count].title[line_length-1]='\0';
 				break;
 			case 2:
-				strcpy(authbuf,line_buffer);
-				authbuf[line_length-1]='\0';
-				auth_token = strtok(authbuf,delim);
-				refresh();
-				jj = 0;
-				while(auth_token!=NULL)
-				{
-					strcpy(entries[ent_count].authors[jj],auth_token);
-					entries[ent_count].authors[jj][strlen(auth_token)]='\0';
-					auth_token = strtok(NULL,delim);
-					jj++;
-				}
+				strcpy(entries[ent_count].authors,line_buffer);
+				entries[ent_count].authors[line_length-1]='\0';
 				break;
 			case 3:
 				strcpy(entries[ent_count].abstract,line_buffer);
@@ -297,53 +319,93 @@ entry *fetch_entries(char *subject,int no_of_entries)
 		}
 	}
 	fclose(s_file);
+	free(line_buffer);
 	return(entries);
 }
+
+char **auth_strtol(char *auth_str, int* no_of_auths, int width)
+{
+
+	char *auth_buf=malloc(sizeof(char)*(strlen(auth_str)+1));
+	strcpy(auth_buf,auth_str);
+	auth_buf[strlen(auth_str)]='\0';
+	char ch = auth_buf[0];
+	int kk = 1, ak=1;
+	while(ch)
+	{
+		ch = auth_buf[kk];
+		if(ch == ',')
+			ak++;
+		kk++;
+	}
+	char **auth_list=malloc(sizeof(char *)*ak) ;
+	const char delim[2] = ",";
+	char *auth_token = NULL;
+	char *auth = calloc(ak*width,sizeof(char));
+	int strl;	
+	auth_token = strtok(auth_buf,delim);
+	for(kk=0;kk<ak;kk++)
+	{
+		strl = min(strlen(auth_token),width);
+		strncpy(auth+kk*width,auth_token,strl);
+		*(auth+kk*(width)+strl)='\0';
+		*(auth_list+kk) = auth+kk*(width);
+		auth_token = strtok(NULL,delim);
+	}
+	*no_of_auths = ak;
+	free(auth_buf);
+	return(auth_list);
+}
+
 //Navigator browses arxiv entries
 bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input,int *entry_no)
 {
 	FILE *saved_entries;
 	int line_count = line_counter(sub);
 	int no_of_entries = line_count/5;
+	int nol_tit, nol_abs, nol_auths;
 
 	//Reading the parameters of the windows for accurate display
-	int authwin_h, authwin_w;
+	int authwin_h, authwin_w, twin_h,twin_w, abswin_w,abswin_h;
+	getmaxyx(twin,twin_h,twin_w);
 	getmaxyx(authwin,authwin_h,authwin_w);
+	getmaxyx(abswin,abswin_h,abswin_w);
+	twin_h = twin_h-3;
+	twin_w = twin_w-4;
 	authwin_h = authwin_h -3;
 	authwin_w = authwin_w -4;
-	char auth_str[authwin_h*authwin_w];
-	int kk, jj, atot, auth_l;
+	abswin_h= abswin_h-3;
+	abswin_w = abswin_w-4;
 
 	//Entry data to display
 	entry *entries = fetch_entries(sub,no_of_entries);
-	int abs_scrl=0;
+	int abs_scrl=0, auth_scrl = 0;
 
 	bool ran=1; /*True when arxiv number needs to be refreshed*/
 	bool fin=0; /*True when end of subject area reached*/
 	bool chsub=0;/*True when the entries are finished*/
 
+	char ** title_lines = NULL;
+	char ** abs_lines = NULL;
+	char ** auth_lines = NULL;
 	saved_entries = fopen("saved_entries.d","a");
 	while(!fin)
 	{
 		//refreshing displayed windows
 		ecount_update(*entry_no,no_of_entries);
-		update_win(twin,entries[*entry_no-1].title, abs_scrl);
-		atot = 0;
-		for(kk=0;kk<authwin_h;kk++)
-		{
-			if(!entries[*entry_no-1].authors[kk][0])
-				break;
-			auth_l = strlen(entries[*entry_no-1].authors[kk]);
-			for(jj=0;jj<auth_l;jj++)
-			{
-				auth_str[atot+jj]=entries[*entry_no-1].authors[kk][jj];
-			}
-			auth_str[atot+auth_l]='\n';
-			atot = atot + auth_l+1;
-		}
-		auth_str[atot] = '\0';
-		update_win(authwin,auth_str,abs_scrl);
-		update_win(abswin,entries[*entry_no-1].abstract,abs_scrl);
+
+		title_lines = to_lines(entries[*entry_no-1].title,twin_w,&nol_tit); 
+		update_winb(twin,title_lines,nol_tit, 0, "Window too small");
+		free_lines(title_lines);
+
+		auth_lines =  auth_strtol(entries[*entry_no-1].authors,&nol_auths, authwin_w);
+		update_winb(authwin,auth_lines,nol_auths,auth_scrl,"Use PgUp/PgDn to scroll");
+		free_lines(auth_lines);
+
+		abs_lines = to_lines(entries[*entry_no-1].abstract,abswin_w,&nol_abs); 
+		update_winb(abswin,abs_lines,nol_abs, abs_scrl, "Use arrowkeys to scroll");
+		free_lines(abs_lines);
+
 		if(ran)
 		{
 			attron(A_BOLD);
@@ -369,6 +431,7 @@ bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input
 					fin = 1;
 				}
 				abs_scrl = 0;
+				auth_scrl = 0;
 				ran = 1;
 				break;
 			case '\n':
@@ -380,14 +443,23 @@ bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input
 					fin = 1;
 				}
 				abs_scrl = 0;
+				auth_scrl = 0;
 				ran = 1;
 				break;
 			case KEY_DOWN:
-				abs_scrl = new_scroll_value(abswin,entries[*entry_no-1].abstract,abs_scrl+1);
+				abs_scrl = new_scroll_value(abswin,nol_abs,abs_scrl+1);
 				ran = 0;
 				break;
 			case KEY_UP:
-				abs_scrl = new_scroll_value(abswin,entries[*entry_no-1].abstract,abs_scrl-1);
+				abs_scrl = new_scroll_value(abswin,nol_abs,abs_scrl-1);
+				ran = 0;
+				break;
+			case KEY_NPAGE:
+				auth_scrl = new_scroll_value(authwin,nol_auths,auth_scrl+1);
+				ran = 0;
+				break;
+			case KEY_PPAGE:
+				auth_scrl = new_scroll_value(authwin,nol_auths,auth_scrl-1);
 				ran = 0;
 				break;
 			case 's':

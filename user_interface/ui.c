@@ -128,7 +128,6 @@ void *user_interface(void * colo)
 	abs_win = bt_win("Abstract", LINES-13,COLS-4,13,2);
 
 	wattrset(abs_win,COLOR_PAIR(2));
-	mvwaddstr(abs_win,1,COLS-28,"Use arrowkeys to scroll");
 	wrefresh(title_win);
 	wrefresh(auth_win);
 	wrefresh(abs_win);
@@ -208,14 +207,14 @@ void *user_interface(void * colo)
 	}while(input!='q');
 
 
-
-	endwin();	/* quit ncurses */
-
 	for(ii=0;ii<nsubs;ii++)
 	{
 		free(subject_array[ii]);
 	}
 	free(line_buffer);
+
+	endwin();	/* quit ncurses */
+
 }
 
 int main()
