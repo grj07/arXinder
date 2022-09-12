@@ -2,30 +2,6 @@ import json
 import shutil
 import datetime, holidays, pytz, time
 
-#Returns abstract free of HTML and newline formatting.
-def parse_feed_abstract(entry):
-    abstract = entry.description.lstrip("<p>")\
-                                .rstrip("</p>")\
-                                .rstrip()\
-                                .replace("\n"," ")
-    return abstract
-
-#Returns entry authors as list
-def parse_feed_authors(entry):
-    authors = entry.author.split(',')
-    parsed = []
-    for author in authors:
-        if '>' in author:
-            parsed.append(author.split('>')[1].split('<')[0])
-        else:
-            parsed.append(author)
-    return parsed
-
-#auth list to string for C program
-def auth_string(auth_list):
-    auth_str = ','.join(auth_list)
-    return(auth_str)
-
 #converts GMT time to EST
 def gmt_to_est(gmtdt):
     gmt = pytz.timezone('GMT')
