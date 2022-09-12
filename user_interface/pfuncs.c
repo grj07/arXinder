@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <jansson.h>
 #include "pfuncs.h"
 #include "gfuncs.h"
 
@@ -21,6 +22,32 @@
 #define LYELLOWG 855
 #define LYELLOWB 700
 
+
+struct _entries_header{
+	char subject[20];
+	int raw_no_of_entries;
+	char date[9];
+	char datef[18];
+	int cur_entry_no;
+	int filtered_no_of_entries;
+};
+
+struct _entry
+{
+	char arxiv_no[12];
+	char title[300];
+	char authors[3000];
+	char abstract[2000];
+};
+
+//Navigator argument structure needed to thread navigator with python script
+struct _nav_arg_struct{
+	WINDOW *twin;
+       	WINDOW *awin;
+       	WINDOW	*abwin;
+	int * inp;
+	bool *change_subject;
+};
 
 int colours() /*Colours checks if the terminal can do colours, and returns 1 if so*/
 {
@@ -59,13 +86,15 @@ WINDOW *bt_win(char *title, int height, int width, int ypos,int xpos)
 	return f_win;
 }
 
-void update_subs(int n, char *sub_array[],int nsubs) /*returns the subject to extract entries from*/
-{
+void update_subs(int n, char *sub_array[],int nsubs) /*updates the subject array on the screen*/
+{		
 	int jj=0;
 	int ll=0;
 	int dm, ctot;
 	ctot = strlen(sub_array[n])+5;
-	for(jj=n+1;jj<nsubs+n;jj++)
+
+	jj = n+1;
+	for(jj= n+1;jj <nsubs+n;jj++)
 	{
 		ll = jj % nsubs;
 		ctot = ctot + max(strlen(sub_array[ll])+5,0);
@@ -261,13 +290,92 @@ char *refresh_menu(WINDOW *menu_win,char* path_to_file,int m_input, int *mm, int
 	return(categ); /*memory freed in main*/
 }
 
-typedef struct entry
-{
-	char arxiv_no[12];
-	char title[300];
-	char authors[3000];
-	char abstract[2000];
-}entry;
+entries_header *fetch_header(char *sub){
+	entries_header *head = malloc(sizeof(entries_header));	
+	json_t* jtemp = NULL;
+	
+	char * line_buf=NULL;
+	size_t l_size;
+	json_error_t error;
+	FILE *efile;
+	
+	efile = fopen(sub,"r");
+
+	getline(&line_buf, &l_size, efile);
+	json_t *root = json_loads(line_buf,0,&error);
+	jtemp = json_object_get(root, "subject");
+	strcpy(head->subject,(char*) json_string_value(jtemp));
+	jtemp = json_object_get(root, "raw_no_of_entries");
+	head->raw_no_of_entries = (int) json_integer_value(jtemp);
+	jtemp = json_object_get(root, "date");
+	strcpy(head->date,(char*) json_string_value(jtemp));
+	jtemp = json_object_get(root, "datef");
+	strcpy(head->datef,(char*) json_string_value(jtemp));
+	jtemp = json_object_get(root, "cur_entry_no");
+	head->cur_entry_no = (int) json_integer_value(jtemp);
+	jtemp = json_object_get(root, "filtered_no_of_entries");
+	head->filtered_no_of_entries = (int) json_integer_value(jtemp);
+
+	fclose(efile);
+	free(jtemp);
+	free(line_buf);
+	return(head);
+}
+
+//to be run upon the exit of navigator. Running from navigator most sensible as a fin condition
+//need an intermediate buffer to copy entries from (the file itself?)
+void set_header(entries_header *head){
+	char filepath[] = "p_feeds/";
+	char * file_str;
+	char * fstr;
+	json_t* jtemp = NULL;
+	char* new_head = NULL;
+	
+	char * line_buf=NULL;
+	size_t l_size;
+	ssize_t l_length;
+	FILE *efile;
+	FILE *wfile;
+	
+
+	json_t* root = json_object(); 
+	jtemp = json_string(head->subject);
+	json_object_set_new(root, "subject", jtemp);
+	jtemp = json_integer(head->raw_no_of_entries);
+	json_object_set_new(root, "raw_no_of_entries", jtemp);
+	jtemp = json_string(head->date);
+	json_object_set_new(root, "date", jtemp);
+	jtemp = json_string(head->datef);
+	json_object_set_new(root, "datef", jtemp);
+	jtemp = json_integer(head->cur_entry_no);
+	json_object_set_new(root, "cur_entry_no", jtemp);
+	jtemp = json_integer(head->filtered_no_of_entries);
+	json_object_set_new(root, "filtered_no_of_entries", jtemp);
+
+	fstr = join_strings(filepath,head->subject);
+	file_str = join_strings(fstr,head->date);
+	new_head = json_dumps(root,0);
+	wfile = fopen(file_str,"w");
+	fputs(new_head,wfile);
+	fputs("\n",wfile);
+
+//efile is buffer file, renamed version of current subject file
+	efile = fopen("cursub","r");
+	l_length = getline(&line_buf, &l_size, efile);
+	l_length = getline(&line_buf, &l_size, efile);
+	while(l_length>= 0)
+	{
+		fputs(line_buf,wfile);
+		l_length = getline(&line_buf, &l_size, efile);
+	}
+	fclose(efile);
+	fclose(wfile);
+	json_decref(root);
+	free(fstr);
+	free(file_str);
+	free(new_head);
+	free(line_buf);
+}
 
 entry *fetch_entries(char *subject,int no_of_entries)
 {
@@ -357,13 +465,23 @@ char **auth_strtol(char *auth_str, int* no_of_auths, int width)
 	return(auth_list);
 }
 
+
 //Navigator browses arxiv entries
-bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input,int *entry_no)
-{
+void * navigator(void *arg_struct ){
+	nav_arg_struct *args = arg_struct; 
+	WINDOW *twin = args->twin;
+	WINDOW *authwin = args->awin;
+	WINDOW *abswin = args->abwin;
+	int * input = args->inp;
+	bool *chsub = args->change_subject;
+	char temp[] = "cursub";
+
+
 	FILE *saved_entries;
-	int line_count = line_counter(sub);
+	int line_count = line_counter(temp);
 	int no_of_entries = line_count/5;
 	int nol_tit, nol_abs, nol_auths;
+	int entry_no;
 
 	//Reading the parameters of the windows for accurate display
 	int authwin_h, authwin_w, twin_h,twin_w, abswin_w,abswin_h;
@@ -378,12 +496,21 @@ bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input
 	abswin_w = abswin_w-4;
 
 	//Entry data to display
-	entry *entries = fetch_entries(sub,no_of_entries);
+	entries_header *head = fetch_header(temp);
+	entry_no = head->cur_entry_no;
+
+
+	//If it has been read, move on straight away
+	bool fin=0; /*True when end of subject area reached*/
+
+	entry *entries = fetch_entries(temp,no_of_entries);
 	int abs_scrl=0, auth_scrl = 0;
 
+	mvprintw(4,40,"(%s)",head->datef);
+	refresh();
+	//Entries have been fetched - can now rename file
+	
 	bool ran=1; /*True when arxiv number needs to be refreshed*/
-	bool fin=0; /*True when end of subject area reached*/
-	bool chsub=0;/*True when the entries are finished*/
 
 	char ** title_lines = NULL;
 	char ** abs_lines = NULL;
@@ -392,17 +519,17 @@ bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input
 	while(!fin)
 	{
 		//refreshing displayed windows
-		ecount_update(*entry_no,no_of_entries);
+		ecount_update(entry_no,no_of_entries);
 
-		title_lines = to_lines(entries[*entry_no-1].title,twin_w,&nol_tit); 
+		title_lines = to_lines(entries[entry_no-1].title,twin_w,&nol_tit); 
 		update_winb(twin,title_lines,nol_tit, 0, "Window too small");
 		free_lines(title_lines);
 
-		auth_lines =  auth_strtol(entries[*entry_no-1].authors,&nol_auths, authwin_w);
+		auth_lines =  auth_strtol(entries[entry_no-1].authors,&nol_auths, authwin_w);
 		update_winb(authwin,auth_lines,nol_auths,auth_scrl,"Use PgUp/PgDn to scroll");
 		free_lines(auth_lines);
 
-		abs_lines = to_lines(entries[*entry_no-1].abstract,abswin_w,&nol_abs); 
+		abs_lines = to_lines(entries[entry_no-1].abstract,abswin_w,&nol_abs); 
 		update_winb(abswin,abs_lines,nol_abs, abs_scrl, "Use arrowkeys to scroll");
 		free_lines(abs_lines);
 
@@ -412,7 +539,7 @@ bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input
 			move(4,28);
 			clear_text(10);
 			move(4,28);
-			typewriter(entries[*entry_no-1].arxiv_no,40);
+			typewriter(entries[entry_no-1].arxiv_no,40);
 			attroff(A_BOLD);
 			ran=0;
 		}
@@ -424,10 +551,10 @@ bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input
 		switch(*input) /*Updates abstract  sroll value, changes entry number*/
 		{
 			case KEY_BACKSPACE:
-				*entry_no= *entry_no+1;
-				if(*entry_no>no_of_entries)
+				entry_no= entry_no+1;
+				if(entry_no>no_of_entries)
 				{
-					chsub = 1;
+					*chsub = 1;
 					fin = 1;
 				}
 				abs_scrl = 0;
@@ -435,11 +562,11 @@ bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input
 				ran = 1;
 				break;
 			case '\n':
-				fprintf(saved_entries,"%s\n",entries[*entry_no-1].arxiv_no);
-				*entry_no=*entry_no+1;
-				if(*entry_no>no_of_entries)
+				fprintf(saved_entries,"%s\n",entries[entry_no-1].arxiv_no);
+				entry_no=entry_no+1;
+				if(entry_no>no_of_entries)
 				{
-					chsub = 1;
+					*chsub = 1;
 					fin = 1;
 				}
 				abs_scrl = 0;
@@ -476,7 +603,10 @@ bool navigator(WINDOW *twin,WINDOW *authwin,WINDOW *abswin,char *sub, int *input
 	}
 	fclose(saved_entries);
 	free(entries);
-	return(chsub);
+	head->cur_entry_no = entry_no;
+	set_header(head);
+	free(head);
+	return NULL;
 }
 
 void chosen_subjects(WINDOW *cho_win,int scl)

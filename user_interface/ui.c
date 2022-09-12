@@ -11,6 +11,37 @@
 #define NTHREADS  2
 #define VERSION "0.0.3"
 
+#define RESUME_FILE "res"
+#define RESUME_SCRIPT "resume.py"
+#define GE_SCRIPT "get_entries.py"
+
+struct _entries_header{
+	char subject[20];
+	int raw_no_of_entries;
+	char date[9];
+	char datef[18];
+	int cur_entry_no;
+	int filtered_no_of_entries;
+};
+
+struct _entry
+{
+	char arxiv_no[12];
+	char title[300];
+	char authors[3000];
+	char abstract[2000];
+};
+
+//Navigator argument structure needed to thread navigator with python script
+struct _nav_arg_struct{
+	WINDOW *twin;
+       	WINDOW *awin;
+       	WINDOW	*abwin;
+	int * inp;
+	bool *change_subject;
+	int *sub_no;
+};
+
 //This function runs Python script
 void *call_datprc(void *pyscript)
 {
@@ -23,6 +54,7 @@ void *call_datprc(void *pyscript)
 	PyRun_SimpleFile(fp, scriptname);
 
 	Py_Finalize();
+	fclose(fp);
 	return NULL;
 }
 
@@ -97,19 +129,62 @@ void *title_screen(void * colo)
 	refresh();
 }
 
-void *user_interface(void * colo)
+void make_title(int col)
 {
-	int col = *(int *)colo;
+	char title[]="arXinder";
+	char subtitle[]="new papers from the arXiv:";
+
+	add_colour(1,col);
+	mvaddstr(2,0,title);
+	add_colour(2,col);
+	mvaddch(2,2,'X');
+	mvaddch(1,1,'\\');
+	mvaddch(3,3,'\\');
+	mvaddch(1,3,'/');
+	mvaddch(3,1,'/');
+	add_colour(3,col);
+	mvaddstr(4,0,subtitle);
+
+	curs_set(0);
+	refresh();
+	noecho();
+}
+
+int resume(int * sub_no)
+{
+	FILE *fconf;
+	FILE *fscript;
+	int res=0;
+
+	Py_Initialize();
+
+	fscript = fopen(RESUME_SCRIPT, "r");
+	PyRun_SimpleFile(fscript,RESUME_SCRIPT);
+	Py_Finalize();
+	fclose(fscript);
+
+	fconf = fopen(RESUME_FILE,"r");
+	fscanf(fconf,"%d %d", &res, sub_no);
+	fclose(fconf);
+	return(res);
+}
+
+void run_arxinder(int col, int *sub_no)
+{
 	//declaring principle windows to display
 	WINDOW *title_win, *auth_win, *abs_win; 
 	//Instructions displayed
 	char sub_inst[] = "s - change subjects";  
 	char sor_inst[] = "Use backspace to reject, return to save";  
+	char temp[] = "cursub";
+
+	mvprintw(4,COLS-strlen(sub_inst),sub_inst);
+	mvprintw(3,COLS-strlen(sor_inst),sor_inst);
+	rem_colour(2,col);
+	refresh();
 
 	//User input for entry navigator
-	int input, mm, scrl, subq;
-
-	//int col = *(int *)colo;
+	int input, scrl, subq;
 
 	//This needs to become an array of pointers to subject strings. 
 	char *sub; /*the current subject area being explored*/
@@ -117,10 +192,6 @@ void *user_interface(void * colo)
 
 
 
-	mvprintw(4,COLS-strlen(sub_inst),sub_inst);
-	mvprintw(3,COLS-strlen(sor_inst),sor_inst);
-	rem_colour(2,col);
-	refresh();
 
 	//entries to be displayed here
 	title_win = bt_win("Title",8,COLS/2-2,5,2);
@@ -132,9 +203,8 @@ void *user_interface(void * colo)
 	wrefresh(auth_win);
 	wrefresh(abs_win);
 
-	//Python script updates subject files
 	
-	//puts subjects in an array 
+	//Subjects in an array to be loaded into array of strings
 	int nsubs = line_counter("subjects.conf");
 	char *subject_array[nsubs];
 	char *line_buffer=NULL;
@@ -159,17 +229,23 @@ void *user_interface(void * colo)
 	fclose(fp);
 
 
-	update_subs(0,subject_array ,nsubs);
-
 
 	refresh();
 	flushinp(); /*Clears the keyboard buffer so any key hit during title screen not input*/
 
-	mm=1; /*start on first entry, scroll set to top, meaningless input*/
 	scrl=0;
 	input = '0';
-	int sub_no = 0; /*subject number for subject_array*/
 	bool chsub=0;
+	bool acc = 0;
+	int rc; /*For the threads*/
+	nav_arg_struct *args = malloc(sizeof(nav_arg_struct));
+	args->twin = title_win;
+	args->awin = auth_win;
+	args->abwin = abs_win;
+	args->inp = &input;
+	args->change_subject = &chsub;
+
+	chsub = 0;
 	do{
 		if(input == 's') 
 			s_menu();	/*Subject menu defined in pfuncs.c */
@@ -190,20 +266,51 @@ void *user_interface(void * colo)
 		touchwin(auth_win);
 		touchwin(abs_win);
 	
-		//Navigator explores entries, defined in pfuncs.c
 		if(chsub)
 		{
-			sub_no++;
-			if(sub_no>= nsubs)
+			*sub_no= *sub_no+1;
+			if(*sub_no>= nsubs)
 			{
-				break;
+				*sub_no=0;
 			}
 			chsub =0;
-			mm=1;
-			update_subs(sub_no,subject_array ,nsubs);
 		}
-		sub = subject_array[sub_no];
-		chsub = navigator(title_win,auth_win,abs_win,sub,&input,&mm); 
+		sub = subject_array[*sub_no];
+
+		//Python script has loaded in subject file. Rename to save
+		update_subs(*sub_no,subject_array ,nsubs);
+		
+		//Check that file is accessible (if not move on to next subject)
+		acc =access(sub,F_OK); 
+		//subject changing
+		if(!acc)
+		{
+			refresh();
+			rename(sub,temp);
+		}
+		else{
+			refresh();
+			chsub = 1;
+			continue;
+		}
+		
+
+		args->inp = &input;
+
+
+
+		pthread_t uthreads[NTHREADS];
+		rc = pthread_create(&uthreads[0], NULL, call_datprc,GE_SCRIPT);
+		rc = pthread_create(&uthreads[1], NULL, navigator,(void *)args);
+		
+		/* wait for threads to finish */
+		for (ii=0; ii<NTHREADS; ii++) 
+		{
+			rc = pthread_join(uthreads[ii], NULL);
+		}
+	
+		chsub = *(args->change_subject); 
+
 	}while(input!='q');
 
 
@@ -211,7 +318,10 @@ void *user_interface(void * colo)
 	{
 		free(subject_array[ii]);
 	}
-	free(line_buffer);
+
+	FILE *f_res= fopen(RESUME_FILE,"w");
+	fprintf(f_res,"%d %d", 0, *sub_no);
+	fclose(f_res);
 
 	endwin();	/* quit ncurses */
 
@@ -220,19 +330,27 @@ void *user_interface(void * colo)
 int main()
 {
 	int ii, rc, col;
+	int sub_no;
+	int re = resume(&sub_no);
 
-        setlocale(LC_ALL, ""); /*Probably unnecessary*/
+
+
+
 	//initialise ncurses mode
 	initscr();			
 	if(COLS<80||LINES<20)
 		bomb("Terminal too small, please use a larger terminal");
 
-	//col = colours(); 
 	col = 0; /*col=0 is black and white mode*/
+ 	/*colours can be turned on by uncommenting*/
+	//col = colours(); 
+
+	//Keypad on, noecho to avoid mishaps and cursor off
 	keypad(stdscr, TRUE);		
 	noecho();
 	curs_set(0);
 
+	//In case subjects haven't been set yet
 	while(!(line_counter("subjects.conf"))) 	
 	{
 		move(1,20);
@@ -243,33 +361,31 @@ int main()
 		clear_text(40);
 	}
 
-	//Title screen on opening
-	char fent[] = "fent.py";
-	char rent[] = "rent.py";
-	pthread_t threads[NTHREADS];
-	rc = pthread_create(&threads[0], NULL, call_datprc,fent);
-	rc = pthread_create(&threads[1], NULL, title_screen,&col);
-	
-	/* wait for threads to finish */
-	for (ii=0; ii<NTHREADS; ii++) 
+	//If the system should not resume, run title screen and get entries in tandem
+	if(!re)
 	{
-		rc = pthread_join(threads[ii], NULL);
+		pthread_t threads[NTHREADS];
+		rc = pthread_create(&threads[0], NULL, call_datprc,GE_SCRIPT);
+		rc = pthread_create(&threads[1], NULL, title_screen,&col);
+		
+		/* wait for threads to finish */
+		for (ii=0; ii<NTHREADS; ii++) 
+		{
+			rc = pthread_join(threads[ii], NULL);
+		}
 	}
+	else
+		make_title(col);
+
 
 	add_colour(2,col);
 	move(2,10);
 	typewriter("v ",100);
 	typewriter(VERSION,100);
 
-	pthread_t uthreads[NTHREADS];
-	rc = pthread_create(&uthreads[0], NULL, call_datprc,rent);
-	rc = pthread_create(&uthreads[1], NULL, user_interface,&col);
-	
-	/* wait for threads to finish */
-	for (ii=0; ii<NTHREADS; ii++) 
-	{
-		rc = pthread_join(uthreads[ii], NULL);
-	}
+	//run_arxinder runs the navigator simultaneously with get_entries. Current subject has been 
+	//loaded by resume_script
+	run_arxinder(col,&sub_no);
 
 
 	return 0;

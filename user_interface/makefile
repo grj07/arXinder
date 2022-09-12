@@ -1,7 +1,7 @@
 filename=ui
 
 output: object 
-	gcc -o ${filename} ${filename}.o gfuncs.o pfuncs.o -lncursesw -L/usr/lib  -lcrypt -ldl -lm -lpython3.10
+	gcc -o ${filename} ${filename}.o gfuncs.o pfuncs.o -lncursesw -L/usr/lib  -lcrypt -ldl -lm -lpython3.10 -ljansson
 	rm *.o
 	
 object:	
