@@ -7,7 +7,7 @@
 #include "pfuncs.h"
 #include "gfuncs.h"
 
-#define GRAY 8
+#define GRAY 8  
 #define GRAYR 500
 #define GRAYG 500
 #define GRAYB 500
@@ -74,19 +74,7 @@ int colours() /*Colours checks if the terminal can do colours, and returns 1 if 
 }
 
 
-//Bordered window with content
-WINDOW *bt_win(char *title, int height, int width, int ypos,int xpos)
-{	
-	WINDOW *f_win;
-
-	f_win = newwin(height,width,ypos,xpos);
-	wbkgd(f_win,COLOR_PAIR(3));
-	box(f_win, 0 , 0);		
-	mvwprintw(f_win,1,width/2-strlen(title)/2,title);
-	return f_win;
-}
-
-void update_subs(int n, char *sub_array[],int nsubs) /*updates the subject array on the screen*/
+void update_subs(int n, char *sub_array[],int nsubs) /*updates the subject display*/
 {		
 	int jj=0;
 	int ll=0;
@@ -113,7 +101,7 @@ void update_subs(int n, char *sub_array[],int nsubs) /*updates the subject array
 	}
 }
 
-void ecount_update(int ent_count,int no_of_entries)
+void ecount_update(int ent_count,int no_of_entries)/*updates the entry number displayed*/
 {
 	move(3,19);
 	clear_text(9);
@@ -125,79 +113,365 @@ void ecount_update(int ent_count,int no_of_entries)
 		mvprintw(3,19,"%d/%d",ent_count,no_of_entries);
 }
 
-//Updates the window with a content window, scm is scroll value 
-void update_win(WINDOW *win,char *new_content, int scm)
-{
-	WINDOW *c_win;
-	int height, width;
-	int npl, nchars;
-	int c, cmax, cmin;
-	char ch;
 
-	getmaxyx(win,height,width); 	/*measures size of window*/
-	npl = width-4;			/*number of characters per line*/
-	nchars=(height-3)*(width-4);    /*number of characters in the window*/
-	cmax = min(strlen(new_content)-1,nchars); /*last char printed to window*/
+entries_header *fetch_header(char *sub){ /*loads header as json data through jansson*/
+	entries_header *head = malloc(sizeof(entries_header));	
+	json_t* jtemp = NULL;
+	
+	char * line_buf=NULL;
+	size_t l_size;
+	json_error_t error;
+	FILE *efile;
+	
+	efile = fopen(sub,"r");
 
-	if(cmax == nchars) /*case where too much content for window*/
-	{
-		cmin = max(npl*scm,0); /*cmin is first char*/
-	}
-	else
-		cmin =0;
+	getline(&line_buf, &l_size, efile);
+	json_t *root = json_loads(line_buf,0,&error);
+	jtemp = json_object_get(root, "subject");
+	strcpy(head->subject,(char*) json_string_value(jtemp));
+	jtemp = json_object_get(root, "raw_no_of_entries");
+	head->raw_no_of_entries = (int) json_integer_value(jtemp);
+	jtemp = json_object_get(root, "date");
+	strcpy(head->date,(char*) json_string_value(jtemp));
+	jtemp = json_object_get(root, "datef");
+	strcpy(head->datef,(char*) json_string_value(jtemp));
+	jtemp = json_object_get(root, "cur_entry_no");
+	head->cur_entry_no = (int) json_integer_value(jtemp);
+	jtemp = json_object_get(root, "filtered_no_of_entries");
+	head->filtered_no_of_entries = (int) json_integer_value(jtemp);
 
-	cmax = min(cmax +cmin,strlen(new_content)-1);/*last char calculated*/
-
-	c_win = derwin(win,height-3,width-4,2,2);
-	wbkgd(c_win,COLOR_PAIR(4));
-	wclear(c_win);
-	//wattron(c_win,A_BOLD);
-	wmove(c_win,0,0);
-	for(c=cmin;c<=cmax;c++)
-	{
-		ch = (char)*(new_content+c);
-		waddch(c_win,ch);
-	}
-	//wattroff(c_win,A_BOLD);
-	wrefresh(c_win);
-	wrefresh(win);
+	fclose(efile);
+	free(jtemp);
+	free(line_buf);
+	return(head);
 }
 
-void update_winb(WINDOW *win,char **new_content, int no_of_lines,int scm, char * scrl_inst)
-{
-	WINDOW *c_win;
-	int height, width;
-	int instl = strlen(scrl_inst);
-	int lc,kk, lmax;
+//to be run upon the exit of navigator. Running from navigator most sensible as a fin condition
+//need an intermediate buffer to copy entries from (the file itself?)
+void set_header(entries_header *head){ /*saves header to file*/
+	char filepath[] = "p_feeds/";
+	char * file_str;
+	char * fstr;
+	json_t* jtemp = NULL;
+	char* new_head = NULL;
+	
+	char * line_buf=NULL;
+	size_t l_size;
+	ssize_t l_length;
+	FILE *efile;
+	FILE *wfile;
+	
 
-	getmaxyx(win,height,width); 	/*measures size of window*/
-	lmax = min(height-3,no_of_lines); /*last line printed to window*/
+	json_t* root = json_object(); 
+	jtemp = json_string(head->subject);
+	json_object_set_new(root, "subject", jtemp);
+	jtemp = json_integer(head->raw_no_of_entries);
+	json_object_set_new(root, "raw_no_of_entries", jtemp);
+	jtemp = json_string(head->date);
+	json_object_set_new(root, "date", jtemp);
+	jtemp = json_string(head->datef);
+	json_object_set_new(root, "datef", jtemp);
+	jtemp = json_integer(head->cur_entry_no);
+	json_object_set_new(root, "cur_entry_no", jtemp);
+	jtemp = json_integer(head->filtered_no_of_entries);
+	json_object_set_new(root, "filtered_no_of_entries", jtemp);
 
-	if(no_of_lines>height-3) /*case where too much content for window - display scrolling instructions*/
+	fstr = join_strings(filepath,head->subject);
+	file_str = join_strings(fstr,head->date);
+	new_head = json_dumps(root,0);
+	wfile = fopen(file_str,"w");
+	fputs(new_head,wfile);
+	fputs("\n",wfile);
+
+//efile is buffer file, renamed version of current subject file
+	efile = fopen("cursub","r");
+	l_length = getline(&line_buf, &l_size, efile);
+	l_length = getline(&line_buf, &l_size, efile);
+	while(l_length>= 0)
 	{
-		mvwaddstr(win , 1, width- instl-1,scrl_inst);
+		fputs(line_buf,wfile);
+		l_length = getline(&line_buf, &l_size, efile);
 	}
-	else /*otherwise no instructions*/
+	fclose(efile);
+	fclose(wfile);
+	json_decref(root);
+	free(fstr);
+	free(file_str);
+	free(new_head);
+	free(line_buf);
+}
+
+entry *fetch_entries(char *subject,int no_of_entries)/*populates array of entry structs with entry data*/
+{
+	FILE *s_file; /*subject file containing entries*/
+	int line_count = 5*no_of_entries+1;
+
+	entry *entries= calloc(no_of_entries,sizeof(entry));
+
+	char *line_buffer = NULL; /*line buffer is filled with line from file using getline*/
+	size_t lb_size;
+	int line_length;
+
+	int kk, typ;
+	int ent_count = 0;
+	s_file = fopen(subject,"r");
+	if(!s_file)
+		bomb("error: cannot find entries, please check network connection");
+	//loop through entries, putting arxiv number, authors, etc in appropriate struct 
+	getline(&line_buffer, &lb_size, s_file);
+	for(kk=1;kk<=line_count;kk++) 
 	{
-		wmove(win,1, width- instl-1);
-		for(kk=0;kk<instl;kk++)
+		getline(&line_buffer, &lb_size, s_file);
+		line_length = strlen(line_buffer);
+		if(kk>1)
+			typ = (kk-2)%5;
+		else
+			typ = 9;
+		switch(typ)
 		{
-			waddch(win,' ');
+			case 0:
+				strcpy(entries[ent_count].arxiv_no,line_buffer);
+				entries[ent_count].arxiv_no[line_length-1]='\0';
+				break;
+			case 1:
+				strcpy(entries[ent_count].title,line_buffer);
+				entries[ent_count].title[line_length-1]='\0';
+				break;
+			case 2:
+				strcpy(entries[ent_count].authors,line_buffer);
+				entries[ent_count].authors[line_length-1]='\0';
+				break;
+			case 3:
+				strcpy(entries[ent_count].abstract,line_buffer);
+				entries[ent_count].abstract[line_length-1]='\0';
+				break;
+			case 4:
+				ent_count++;
+				break;
 		}
 	}
-
-	c_win = derwin(win,height-3,width-4,2,2);
-	wbkgd(c_win,COLOR_PAIR(4));
-	wclear(c_win);
-	//wattron(c_win,A_BOLD);
-	for(lc=scm;lc<lmax+scm;lc++)
-	{
-		mvwaddstr(c_win,lc-scm,0,new_content[lc]);
-	}
-	wattroff(c_win,A_BOLD);
-	wrefresh(win);
-	wrefresh(c_win);
+	fclose(s_file);
+	free(line_buffer);
+	return(entries);
 }
+
+char **auth_strtol(char *auth_str, int* no_of_auths, int width)/*returns array of authors from comma sep string*/
+{
+
+	char *auth_buf=malloc(sizeof(char)*(strlen(auth_str)+1));
+	strcpy(auth_buf,auth_str);
+	auth_buf[strlen(auth_str)]='\0';
+	char ch = auth_buf[0];
+	int kk = 1, ak=1;
+	while(ch)
+	{
+		ch = auth_buf[kk];
+		if(ch == ',')
+			ak++;
+		kk++;
+	}
+	char **auth_list=malloc(sizeof(char *)*ak) ;
+	const char delim[2] = ",";
+	char *auth_token = NULL;
+	char *auth = calloc(ak*width,sizeof(char));
+	int strl;	
+	auth_token = strtok(auth_buf,delim);
+	for(kk=0;kk<ak;kk++)
+	{
+		strl = min(strlen(auth_token),width);
+		strncpy(auth+kk*width,auth_token,strl);
+		*(auth+kk*(width)+strl)='\0';
+		*(auth_list+kk) = auth+kk*(width);
+		auth_token = strtok(NULL,delim);
+	}
+	*no_of_auths = ak;
+	free(auth_buf);
+	return(auth_list);
+}
+
+
+//Navigator browses arxiv entries
+void * navigator(void *arg_struct ){
+	nav_arg_struct *args = arg_struct; 
+	WINDOW *twin = args->twin;
+	WINDOW *authwin = args->awin;
+	WINDOW *abswin = args->abwin;
+	int * input = args->inp;
+	bool *chsub = args->change_subject;
+	char temp[] = "cursub";
+
+
+	FILE *saved_entries;
+	int line_count = line_counter(temp);
+	int no_of_entries = line_count/5;
+	int nol_tit, nol_abs, nol_auths;
+	int entry_no;
+
+	//Reading the parameters of the windows for accurate display
+	int authwin_h, authwin_w, twin_h,twin_w, abswin_w,abswin_h;
+	getmaxyx(twin,twin_h,twin_w);
+	getmaxyx(authwin,authwin_h,authwin_w);
+	getmaxyx(abswin,abswin_h,abswin_w);
+	twin_h = twin_h-3;
+	twin_w = twin_w-4;
+	authwin_h = authwin_h -3;
+	authwin_w = authwin_w -4;
+	abswin_h= abswin_h-3;
+	abswin_w = abswin_w-4;
+
+	//Entry data to display
+	entries_header *head = fetch_header(temp);
+	entry_no = head->cur_entry_no;
+
+
+	//If it has been read, move on straight away
+	bool fin=0; /*True when end of subject area reached*/
+
+	entry *entries = fetch_entries(temp,no_of_entries);
+	int abs_scrl=0, auth_scrl = 0;
+
+	mvprintw(4,40,"(%s)",head->datef);
+	refresh();
+	//Entries have been fetched - can now rename file
+	
+	bool ran=1; /*True when arxiv number needs to be refreshed*/
+
+	char ** title_lines = NULL;
+	char ** abs_lines = NULL;
+	char ** auth_lines = NULL;
+	saved_entries = fopen("saved_entries.d","a");
+	while(!fin)
+	{
+		//refreshing displayed windows
+		ecount_update(entry_no,no_of_entries);
+
+		title_lines = to_lines(entries[entry_no-1].title,twin_w,&nol_tit); 
+		update_win(twin,title_lines,nol_tit, 0, "Window too small");
+		free_lines(title_lines);
+
+		auth_lines =  auth_strtol(entries[entry_no-1].authors,&nol_auths, authwin_w);
+		update_win(authwin,auth_lines,nol_auths,auth_scrl,"Use PgUp/PgDn to scroll");
+		free_lines(auth_lines);
+
+		abs_lines = to_lines(entries[entry_no-1].abstract,abswin_w,&nol_abs); 
+		update_win(abswin,abs_lines,nol_abs, abs_scrl, "Use arrowkeys to scroll");
+		free_lines(abs_lines);
+
+		if(ran)
+		{
+			attron(A_BOLD);
+			move(4,28);
+			clear_text(10);
+			move(4,28);
+			typewriter(entries[entry_no-1].arxiv_no,40);
+			attroff(A_BOLD);
+			ran=0;
+		}
+		wrefresh(twin);
+		wrefresh(authwin);
+		wrefresh(abswin);
+
+		*input = getch();
+		switch(*input) /*Updates abstract  sroll value, changes entry number*/
+		{
+			case KEY_BACKSPACE:
+				entry_no= entry_no+1;
+				if(entry_no>no_of_entries)
+				{
+					*chsub = 1;
+					fin = 1;
+				}
+				abs_scrl = 0;
+				auth_scrl = 0;
+				ran = 1;
+				break;
+			case '\n':
+				fprintf(saved_entries,"%s\n",entries[entry_no-1].arxiv_no);
+				entry_no=entry_no+1;
+				if(entry_no>no_of_entries)
+				{
+					*chsub = 1;
+					fin = 1;
+				}
+				abs_scrl = 0;
+				auth_scrl = 0;
+				ran = 1;
+				break;
+			case KEY_DOWN:
+				abs_scrl = new_scroll_value(abswin,nol_abs,abs_scrl+1);
+				ran = 0;
+				break;
+			case KEY_UP:
+				abs_scrl = new_scroll_value(abswin,nol_abs,abs_scrl-1);
+				ran = 0;
+				break;
+			case KEY_NPAGE:
+				auth_scrl = new_scroll_value(authwin,nol_auths,auth_scrl+1);
+				ran = 0;
+				break;
+			case KEY_PPAGE:
+				auth_scrl = new_scroll_value(authwin,nol_auths,auth_scrl-1);
+				ran = 0;
+				break;
+			case 's':
+				fin = 1;
+			case 'q':
+				fin = 1;
+			case '0':
+				ran=1;
+				break;
+			default:
+				ran=0;
+				break;
+		}
+	}
+	fclose(saved_entries);
+	free(entries);
+	head->cur_entry_no = entry_no;
+	set_header(head);
+	free(head);
+	return NULL;
+}
+
+void chosen_subjects(WINDOW *cho_win,int scl)/*displays subjects chosen from subjects.conf*/
+{
+	FILE *sub_list;
+	int kk=0;
+	int wh, ww;
+	char *buf=NULL;
+	size_t buf_size; 
+	ssize_t lsize;
+	getmaxyx(cho_win,wh,ww);
+	char *menu_item = calloc(ww-1,sizeof(char));
+	sub_list = fopen("subjects.conf","r");
+	lsize = getline(&buf,&buf_size,sub_list);
+	while(lsize >=0)	
+	{
+		strcpy(menu_item,buf);
+		*(menu_item+strlen(buf)-1)='\0';
+
+	      	wmove(cho_win,kk-scl,0);
+		wclrtoeol(cho_win);
+		if(kk>=scl)
+			mvwaddstr(cho_win,kk-scl,1,menu_item);
+		wattroff(cho_win,A_REVERSE);
+		lsize = getline(&buf,&buf_size,sub_list);
+		if(kk>wh+scl)
+			break;
+		kk++;
+	}
+	fclose(sub_list);
+	free(buf);
+	free(menu_item);
+}
+
+void clear_sublist()/*clears subjects (empties file)*/
+{
+	FILE *sublist;
+	sublist = fopen("subjects.conf","w");
+	fclose(sublist);
+}
+
 //make_menu prints an instant of the window to mwin, and returns name of
 //menu item for use in file path
 char *make_menu(WINDOW *mwin,char *path_to_file,int item, int scl)
@@ -290,378 +564,18 @@ char *refresh_menu(WINDOW *menu_win,char* path_to_file,int m_input, int *mm, int
 	return(categ); /*memory freed in main*/
 }
 
-entries_header *fetch_header(char *sub){
-	entries_header *head = malloc(sizeof(entries_header));	
-	json_t* jtemp = NULL;
-	
-	char * line_buf=NULL;
-	size_t l_size;
-	json_error_t error;
-	FILE *efile;
-	
-	efile = fopen(sub,"r");
-
-	getline(&line_buf, &l_size, efile);
-	json_t *root = json_loads(line_buf,0,&error);
-	jtemp = json_object_get(root, "subject");
-	strcpy(head->subject,(char*) json_string_value(jtemp));
-	jtemp = json_object_get(root, "raw_no_of_entries");
-	head->raw_no_of_entries = (int) json_integer_value(jtemp);
-	jtemp = json_object_get(root, "date");
-	strcpy(head->date,(char*) json_string_value(jtemp));
-	jtemp = json_object_get(root, "datef");
-	strcpy(head->datef,(char*) json_string_value(jtemp));
-	jtemp = json_object_get(root, "cur_entry_no");
-	head->cur_entry_no = (int) json_integer_value(jtemp);
-	jtemp = json_object_get(root, "filtered_no_of_entries");
-	head->filtered_no_of_entries = (int) json_integer_value(jtemp);
-
-	fclose(efile);
-	free(jtemp);
-	free(line_buf);
-	return(head);
-}
-
-//to be run upon the exit of navigator. Running from navigator most sensible as a fin condition
-//need an intermediate buffer to copy entries from (the file itself?)
-void set_header(entries_header *head){
-	char filepath[] = "p_feeds/";
-	char * file_str;
-	char * fstr;
-	json_t* jtemp = NULL;
-	char* new_head = NULL;
-	
-	char * line_buf=NULL;
-	size_t l_size;
-	ssize_t l_length;
-	FILE *efile;
-	FILE *wfile;
-	
-
-	json_t* root = json_object(); 
-	jtemp = json_string(head->subject);
-	json_object_set_new(root, "subject", jtemp);
-	jtemp = json_integer(head->raw_no_of_entries);
-	json_object_set_new(root, "raw_no_of_entries", jtemp);
-	jtemp = json_string(head->date);
-	json_object_set_new(root, "date", jtemp);
-	jtemp = json_string(head->datef);
-	json_object_set_new(root, "datef", jtemp);
-	jtemp = json_integer(head->cur_entry_no);
-	json_object_set_new(root, "cur_entry_no", jtemp);
-	jtemp = json_integer(head->filtered_no_of_entries);
-	json_object_set_new(root, "filtered_no_of_entries", jtemp);
-
-	fstr = join_strings(filepath,head->subject);
-	file_str = join_strings(fstr,head->date);
-	new_head = json_dumps(root,0);
-	wfile = fopen(file_str,"w");
-	fputs(new_head,wfile);
-	fputs("\n",wfile);
-
-//efile is buffer file, renamed version of current subject file
-	efile = fopen("cursub","r");
-	l_length = getline(&line_buf, &l_size, efile);
-	l_length = getline(&line_buf, &l_size, efile);
-	while(l_length>= 0)
-	{
-		fputs(line_buf,wfile);
-		l_length = getline(&line_buf, &l_size, efile);
-	}
-	fclose(efile);
-	fclose(wfile);
-	json_decref(root);
-	free(fstr);
-	free(file_str);
-	free(new_head);
-	free(line_buf);
-}
-
-entry *fetch_entries(char *subject,int no_of_entries)
-{
-	FILE *s_file; /*subject file containing entries*/
-	int line_count = 5*no_of_entries+1;
-
-	entry *entries= calloc(no_of_entries,sizeof(entry));
-
-	char *line_buffer = NULL; /*line buffer is filled with line from file using getline*/
-	size_t lb_size;
-	int line_length;
-
-	int kk, typ;
-	int ent_count = 0;
-	s_file = fopen(subject,"r");
-	if(!s_file)
-		bomb("error: cannot find entries, please check network connection");
-	//loop through entries, putting arxiv number, authors, etc in appropriate struct 
-	getline(&line_buffer, &lb_size, s_file);
-	for(kk=1;kk<=line_count;kk++) 
-	{
-		getline(&line_buffer, &lb_size, s_file);
-		line_length = strlen(line_buffer);
-		if(kk>1)
-			typ = (kk-2)%5;
-		else
-			typ = 9;
-		switch(typ)
-		{
-			case 0:
-				strcpy(entries[ent_count].arxiv_no,line_buffer);
-				entries[ent_count].arxiv_no[line_length-1]='\0';
-				break;
-			case 1:
-				strcpy(entries[ent_count].title,line_buffer);
-				entries[ent_count].title[line_length-1]='\0';
-				break;
-			case 2:
-				strcpy(entries[ent_count].authors,line_buffer);
-				entries[ent_count].authors[line_length-1]='\0';
-				break;
-			case 3:
-				strcpy(entries[ent_count].abstract,line_buffer);
-				entries[ent_count].abstract[line_length-1]='\0';
-				break;
-			case 4:
-				ent_count++;
-				break;
-		}
-	}
-	fclose(s_file);
-	free(line_buffer);
-	return(entries);
-}
-
-char **auth_strtol(char *auth_str, int* no_of_auths, int width)
-{
-
-	char *auth_buf=malloc(sizeof(char)*(strlen(auth_str)+1));
-	strcpy(auth_buf,auth_str);
-	auth_buf[strlen(auth_str)]='\0';
-	char ch = auth_buf[0];
-	int kk = 1, ak=1;
-	while(ch)
-	{
-		ch = auth_buf[kk];
-		if(ch == ',')
-			ak++;
-		kk++;
-	}
-	char **auth_list=malloc(sizeof(char *)*ak) ;
-	const char delim[2] = ",";
-	char *auth_token = NULL;
-	char *auth = calloc(ak*width,sizeof(char));
-	int strl;	
-	auth_token = strtok(auth_buf,delim);
-	for(kk=0;kk<ak;kk++)
-	{
-		strl = min(strlen(auth_token),width);
-		strncpy(auth+kk*width,auth_token,strl);
-		*(auth+kk*(width)+strl)='\0';
-		*(auth_list+kk) = auth+kk*(width);
-		auth_token = strtok(NULL,delim);
-	}
-	*no_of_auths = ak;
-	free(auth_buf);
-	return(auth_list);
-}
-
-
-//Navigator browses arxiv entries
-void * navigator(void *arg_struct ){
-	nav_arg_struct *args = arg_struct; 
-	WINDOW *twin = args->twin;
-	WINDOW *authwin = args->awin;
-	WINDOW *abswin = args->abwin;
-	int * input = args->inp;
-	bool *chsub = args->change_subject;
-	char temp[] = "cursub";
-
-
-	FILE *saved_entries;
-	int line_count = line_counter(temp);
-	int no_of_entries = line_count/5;
-	int nol_tit, nol_abs, nol_auths;
-	int entry_no;
-
-	//Reading the parameters of the windows for accurate display
-	int authwin_h, authwin_w, twin_h,twin_w, abswin_w,abswin_h;
-	getmaxyx(twin,twin_h,twin_w);
-	getmaxyx(authwin,authwin_h,authwin_w);
-	getmaxyx(abswin,abswin_h,abswin_w);
-	twin_h = twin_h-3;
-	twin_w = twin_w-4;
-	authwin_h = authwin_h -3;
-	authwin_w = authwin_w -4;
-	abswin_h= abswin_h-3;
-	abswin_w = abswin_w-4;
-
-	//Entry data to display
-	entries_header *head = fetch_header(temp);
-	entry_no = head->cur_entry_no;
-
-
-	//If it has been read, move on straight away
-	bool fin=0; /*True when end of subject area reached*/
-
-	entry *entries = fetch_entries(temp,no_of_entries);
-	int abs_scrl=0, auth_scrl = 0;
-
-	mvprintw(4,40,"(%s)",head->datef);
-	refresh();
-	//Entries have been fetched - can now rename file
-	
-	bool ran=1; /*True when arxiv number needs to be refreshed*/
-
-	char ** title_lines = NULL;
-	char ** abs_lines = NULL;
-	char ** auth_lines = NULL;
-	saved_entries = fopen("saved_entries.d","a");
-	while(!fin)
-	{
-		//refreshing displayed windows
-		ecount_update(entry_no,no_of_entries);
-
-		title_lines = to_lines(entries[entry_no-1].title,twin_w,&nol_tit); 
-		update_winb(twin,title_lines,nol_tit, 0, "Window too small");
-		free_lines(title_lines);
-
-		auth_lines =  auth_strtol(entries[entry_no-1].authors,&nol_auths, authwin_w);
-		update_winb(authwin,auth_lines,nol_auths,auth_scrl,"Use PgUp/PgDn to scroll");
-		free_lines(auth_lines);
-
-		abs_lines = to_lines(entries[entry_no-1].abstract,abswin_w,&nol_abs); 
-		update_winb(abswin,abs_lines,nol_abs, abs_scrl, "Use arrowkeys to scroll");
-		free_lines(abs_lines);
-
-		if(ran)
-		{
-			attron(A_BOLD);
-			move(4,28);
-			clear_text(10);
-			move(4,28);
-			typewriter(entries[entry_no-1].arxiv_no,40);
-			attroff(A_BOLD);
-			ran=0;
-		}
-		wrefresh(twin);
-		wrefresh(authwin);
-		wrefresh(abswin);
-
-		*input = getch();
-		switch(*input) /*Updates abstract  sroll value, changes entry number*/
-		{
-			case KEY_BACKSPACE:
-				entry_no= entry_no+1;
-				if(entry_no>no_of_entries)
-				{
-					*chsub = 1;
-					fin = 1;
-				}
-				abs_scrl = 0;
-				auth_scrl = 0;
-				ran = 1;
-				break;
-			case '\n':
-				fprintf(saved_entries,"%s\n",entries[entry_no-1].arxiv_no);
-				entry_no=entry_no+1;
-				if(entry_no>no_of_entries)
-				{
-					*chsub = 1;
-					fin = 1;
-				}
-				abs_scrl = 0;
-				auth_scrl = 0;
-				ran = 1;
-				break;
-			case KEY_DOWN:
-				abs_scrl = new_scroll_value(abswin,nol_abs,abs_scrl+1);
-				ran = 0;
-				break;
-			case KEY_UP:
-				abs_scrl = new_scroll_value(abswin,nol_abs,abs_scrl-1);
-				ran = 0;
-				break;
-			case KEY_NPAGE:
-				auth_scrl = new_scroll_value(authwin,nol_auths,auth_scrl+1);
-				ran = 0;
-				break;
-			case KEY_PPAGE:
-				auth_scrl = new_scroll_value(authwin,nol_auths,auth_scrl-1);
-				ran = 0;
-				break;
-			case 's':
-				fin = 1;
-			case 'q':
-				fin = 1;
-			case '0':
-				ran=1;
-				break;
-			default:
-				ran=0;
-				break;
-		}
-	}
-	fclose(saved_entries);
-	free(entries);
-	head->cur_entry_no = entry_no;
-	set_header(head);
-	free(head);
-	return NULL;
-}
-
-void chosen_subjects(WINDOW *cho_win,int scl)
-{
-	FILE *sub_list;
-	int kk=0;
-	int wh, ww;
-	char *buf=NULL;
-	size_t buf_size; 
-	ssize_t lsize;
-	getmaxyx(cho_win,wh,ww);
-	char *menu_item = calloc(ww-1,sizeof(char));
-	sub_list = fopen("subjects.conf","r");
-	lsize = getline(&buf,&buf_size,sub_list);
-	while(lsize >=0)	
-	{
-		strcpy(menu_item,buf);
-		*(menu_item+strlen(buf)-1)='\0';
-
-	      	wmove(cho_win,kk-scl,0);
-		wclrtoeol(cho_win);
-		if(kk>=scl)
-			mvwaddstr(cho_win,kk-scl,1,menu_item);
-		wattroff(cho_win,A_REVERSE);
-		lsize = getline(&buf,&buf_size,sub_list);
-		if(kk>wh+scl)
-			break;
-		kk++;
-	}
-	fclose(sub_list);
-	free(buf);
-	free(menu_item);
-}
-
-void clear_sublist()
-{
-	FILE *sublist;
-	sublist = fopen("subjects.conf","w");
-	fclose(sublist);
-}
-
-void s_menu()
+bool s_menu() /*main subject menu, returns true if program needs to restart (possible changes to subjects)*/
 {
 	FILE *sub_file;
 	WINDOW *menu_win, *cat_win, *sub_win, *cho_win; 
 	char smsub[] = "c - clear subjects";  
 	int cm = 0,csv = 0, sm = 0, ssv = 0;
 	int input;
+	bool changes_made=0;
 	char *cat, *sbj;
 	char *path = malloc(60*sizeof(char));
 	char *tpath = malloc(60*sizeof(char));
 
-	move(0,5);
-	printw("Please restart program to enact changes");
-	refresh();
 	menu_win=bt_win("Subject Settings",LINES-5,COLS-4,5,2);
 	wbkgd(menu_win,COLOR_PAIR(2));
 	mvwaddstr(menu_win,1,COLS-25,smsub);
@@ -688,6 +602,7 @@ void s_menu()
 			wclear(cho_win);
 			chosen_subjects(cho_win,0);
 			wrefresh(cho_win);
+			changes_made = 1;
 		}
 		if(input=='\n')/*category selected, choose subject*/
 		{
@@ -720,6 +635,7 @@ void s_menu()
 					fclose(sub_file);
 					chosen_subjects(cho_win,0);
 					wrefresh(cho_win);
+					changes_made = 1;
 				}
 				free(sbj);
 				sbj = refresh_menu(sub_win,path,input,&sm,&ssv);
@@ -744,4 +660,5 @@ void s_menu()
 	move(0,5);
 	clear_text(40);
 	refresh();
+	return(changes_made);
 }

@@ -1,0 +1,6 @@
+{"subject": "math.HO", "raw_no_of_entries": 1, "date": "07092022", "datef": "Wed 07 Sep 2022", "cur_entry_no": 1, "filtered_no_of_entries": 1}
+
+2209.03141
+Euler's Limit -- Revisited
+Bikash Chakraborty,Sagar Chakraborty
+The aim of this short note is that if $\{ a_{n}\}$ and $\{ b_{n}\}$ are two sequences of positive real numbers such that $a_{n}\to +\infty$ and $b_n$ satisfying the asymptotic formula $b_n\sim k\cdot a_{n}$, where $k>0$, then $\lim\limits_{n\to\infty}\left(1+\frac{1}{a_{n}}\right)^{b_{n}}= e^{k}$.

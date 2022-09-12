@@ -24,8 +24,7 @@ struct _entries_header{
 	int filtered_no_of_entries;
 };
 
-struct _entry
-{
+struct _entry{
 	char arxiv_no[12];
 	char title[300];
 	char authors[3000];
@@ -43,8 +42,7 @@ struct _nav_arg_struct{
 };
 
 //This function runs Python script
-void *call_datprc(void *pyscript)
-{
+void *call_datprc(void *pyscript){
 	char *scriptname = (char *)pyscript;
 	FILE* fp;
 
@@ -59,8 +57,7 @@ void *call_datprc(void *pyscript)
 }
 
 //Title screen: animation while first subject entries load
-void *title_screen(void * colo)
-{
+void *title_screen(void * colo){
 	int col = *(int *)colo;
 	char title1[]="ar";
 	char title2[]="inder";
@@ -101,15 +98,13 @@ void *title_screen(void * colo)
 	move(1,1);
 
 	//Delete lines gradually
-	for(kk=1;kk<=LINES/2-2;kk++)
-	{
+	for(kk=1;kk<=LINES/2-2;kk++){
 		deleteln();
 		refresh();
 		usleep(20000);
 	}
 	//Delete columns gradually
-	for(kk=1;kk<=COLS/2-disp-1;kk++)
-	{
+	for(kk=1;kk<=COLS/2-disp-1;kk++){
 		delch();
 		move(2,1);
 		delch();
@@ -129,8 +124,7 @@ void *title_screen(void * colo)
 	refresh();
 }
 
-void make_title(int col)
-{
+void make_title(int col){
 	char title[]="arXinder";
 	char subtitle[]="new papers from the arXiv:";
 
@@ -150,8 +144,7 @@ void make_title(int col)
 	noecho();
 }
 
-int resume(int * sub_no)
-{
+int resume(int * sub_no){
 	FILE *fconf;
 	FILE *fscript;
 	int res=0;
@@ -169,8 +162,7 @@ int resume(int * sub_no)
 	return(res);
 }
 
-void run_arxinder(int col, int *sub_no)
-{
+void run_arxinder(int col, int *sub_no){
 	//declaring principle windows to display
 	WINDOW *title_win, *auth_win, *abs_win; 
 	//Instructions displayed
@@ -189,9 +181,6 @@ void run_arxinder(int col, int *sub_no)
 	//This needs to become an array of pointers to subject strings. 
 	char *sub; /*the current subject area being explored*/
 	size_t sub_size;
-
-
-
 
 	//entries to be displayed here
 	title_win = bt_win("Title",8,COLS/2-2,5,2);
@@ -218,8 +207,7 @@ void run_arxinder(int col, int *sub_no)
 	subject_array[ii] = malloc((strlen(line_buffer))*sizeof(char));
 	strncpy(subject_array[ii],line_buffer,strlen(line_buffer)-1);
 	*(subject_array[ii]+strlen(line_buffer)-1)='\0';
-	while(line_size>=0)
-	{
+	while(line_size>=0){
 		ii++;
 		line_size = getline(&line_buffer,&lbsize,fp);	
 		subject_array[ii] = malloc((strlen(line_buffer))*sizeof(char));
@@ -247,17 +235,18 @@ void run_arxinder(int col, int *sub_no)
 
 	chsub = 0;
 	do{
-		if(input == 's') 
-			s_menu();	/*Subject menu defined in pfuncs.c */
+		if(input == 's'){
+			if(s_menu()) 	/*Subject menu defined in pfuncs.c */
+				bomb("Please restart program to enact subject changes");
+		}
 		//Need to reload subjects if they change.
-		if(!line_counter("subjects.conf")) 	
-		{
-			move(1,20);
-			printw("Please choose at least one subject area");
+		if(!line_counter("subjects.conf")) {
+			move(1,30);
+			printw("**Please choose at least one subject area**");
 			refresh();
-			move(1,20);
+			move(1,30);
 			napms(2000);
-			clear_text(30);
+			clear_text(50);
 			input='s';
 			continue;
 		}
@@ -266,11 +255,9 @@ void run_arxinder(int col, int *sub_no)
 		touchwin(auth_win);
 		touchwin(abs_win);
 	
-		if(chsub)
-		{
+		if(chsub) {/*changes subject*/
 			*sub_no= *sub_no+1;
-			if(*sub_no>= nsubs)
-			{
+			if(*sub_no>= nsubs){/*If it's past the last subject, it resets*/
 				*sub_no=0;
 			}
 			chsub =0;
@@ -282,9 +269,8 @@ void run_arxinder(int col, int *sub_no)
 		
 		//Check that file is accessible (if not move on to next subject)
 		acc =access(sub,F_OK); 
-		//subject changing
-		if(!acc)
-		{
+		
+		if(!acc){/*python script get_entries won't copy if the entries have been read already*/
 			refresh();
 			rename(sub,temp);
 		}
@@ -303,9 +289,7 @@ void run_arxinder(int col, int *sub_no)
 		rc = pthread_create(&uthreads[0], NULL, call_datprc,GE_SCRIPT);
 		rc = pthread_create(&uthreads[1], NULL, navigator,(void *)args);
 		
-		/* wait for threads to finish */
-		for (ii=0; ii<NTHREADS; ii++) 
-		{
+		for (ii=0; ii<NTHREADS; ii++){/*wait for threads to finish*/
 			rc = pthread_join(uthreads[ii], NULL);
 		}
 	
@@ -314,8 +298,7 @@ void run_arxinder(int col, int *sub_no)
 	}while(input!='q');
 
 
-	for(ii=0;ii<nsubs;ii++)
-	{
+	for(ii=0;ii<nsubs;ii++){
 		free(subject_array[ii]);
 	}
 
@@ -331,6 +314,32 @@ int main()
 {
 	int ii, rc, col;
 	int sub_no;
+	if(!line_counter("subjects.conf")) 	
+	{
+		initscr();			
+		if(COLS<80||LINES<20)
+			bomb("Terminal too small, please use a larger terminal");
+		col = 0; 
+		keypad(stdscr, TRUE);		
+		noecho();
+		curs_set(0);
+	}
+	//In case subjects haven't been set yet
+	while(!(line_counter("subjects.conf"))) 	
+	{
+		move(1,30);
+		printw("**Please choose at least one subject area**");
+		refresh();
+		move(1,30);
+		refresh();
+		move(1,20);
+		if(s_menu()){
+			bomb("Please restart program to enact subject changes");
+			endwin();
+		}
+	}
+
+
 	int re = resume(&sub_no);
 
 
@@ -350,20 +359,9 @@ int main()
 	noecho();
 	curs_set(0);
 
-	//In case subjects haven't been set yet
-	while(!(line_counter("subjects.conf"))) 	
-	{
-		move(1,20);
-		printw("Please choose at least one subject area");
-		refresh();
-		move(1,20);
-		s_menu();
-		clear_text(40);
-	}
 
-	//If the system should not resume, run title screen and get entries in tandem
-	if(!re)
-	{
+	//If the system should not resume, run title screen and get entries in parallel
+	if(!re){
 		pthread_t threads[NTHREADS];
 		rc = pthread_create(&threads[0], NULL, call_datprc,GE_SCRIPT);
 		rc = pthread_create(&threads[1], NULL, title_screen,&col);
@@ -375,7 +373,7 @@ int main()
 		}
 	}
 	else
-		make_title(col);
+		make_title(col); /*generate title otherwise*/
 
 
 	add_colour(2,col);

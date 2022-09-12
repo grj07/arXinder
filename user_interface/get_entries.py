@@ -247,6 +247,8 @@ def format_new_entries(entries,subject):
         entry = ["\n",arxiv_number,html.unescape(entry.title),auths,abstract]
         entry_text = "\n".join(entry)
         formatted_entries.append(entry_text)
+    if len(entries[1])<1:
+        formatted_entries.append("\n\nxxxx.xxxxx\nNO ENTRIES FOR THIS SUBJECT TODAY\nNone\nplease hit backspace to continue\n")
     header['filtered_no_of_entries']=len(formatted_entries)-1
     formatted_entries[0] = str(header).replace("\'","\"")
     return formatted_entries
@@ -263,6 +265,8 @@ def format_old_entries(entries,subject):
         entry = ["\n",arxiv_number,entry.title.replace("\n","").replace("  "," "),auths,abstract]
         entry_text = "\n".join(entry)
         formatted_entries.append(entry_text)
+    if len(entries[1])<1:
+        formatted_entries.append("\n\nxxxx.xxxxx\nNO ENTRIES FOR THIS SUBJECT TODAY\nNone\nplease hit backspace to continue\n")
     header['filtered_no_of_entries']=len(formatted_entries)-1
     formatted_entries[0] = str(header).replace("\'","\"")
     return formatted_entries
