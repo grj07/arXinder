@@ -385,6 +385,14 @@ int main()
 	//loaded by resume_script
 	run_arxinder(col,&sub_no);
 
+	char script[] = "mkchl.py";
+	Py_Initialize();
+
+	FILE *fp = fopen(script, "r");
+	PyRun_SimpleFile(fp, script);
+
+	Py_Finalize();
+	fclose(fp);
 
 	return 0;
 }

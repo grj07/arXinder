@@ -323,6 +323,7 @@ void * navigator(void *arg_struct ){
 	entries_header *head = fetch_header(temp);
 	entry_no = head->cur_entry_no;
 
+	
 
 	//If it has been read, move on straight away
 	bool fin=0; /*True when end of subject area reached*/
@@ -340,6 +341,7 @@ void * navigator(void *arg_struct ){
 	char ** abs_lines = NULL;
 	char ** auth_lines = NULL;
 	saved_entries = fopen("saved_entries.d","a");
+	fprintf(saved_entries,"{\"subject\": \"%s\" ,\"datef\": \"%s\"}\n",head->subject,head->datef);
 	while(!fin)
 	{
 		//refreshing displayed windows
@@ -386,7 +388,9 @@ void * navigator(void *arg_struct ){
 				ran = 1;
 				break;
 			case '\n':
-				fprintf(saved_entries,"%s\n",entries[entry_no-1].arxiv_no);
+				fprintf(saved_entries,"\n%s\n%s\n%s\n%s\n",entries[entry_no-1].arxiv_no,
+						entries[entry_no-1].title,entries[entry_no-1].authors,
+									entries[entry_no-1].abstract);
 				entry_no=entry_no+1;
 				if(entry_no>no_of_entries)
 				{
