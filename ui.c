@@ -168,10 +168,12 @@ void run_arxinder(int col, int *sub_no){
 	//Instructions displayed
 	char sub_inst[] = "s - change subjects";  
 	char sor_inst[] = "Use backspace to reject, return to save";  
+	char qui_inst[] = "press q to quit";  
 	char temp[] = "cursub";
 
 	mvprintw(4,COLS-strlen(sub_inst),sub_inst);
 	mvprintw(3,COLS-strlen(sor_inst),sor_inst);
+	mvprintw(1,COLS-strlen(qui_inst),qui_inst);
 	rem_colour(2,col);
 	refresh();
 
@@ -394,5 +396,6 @@ int main()
 	Py_Finalize();
 	fclose(fp);
 
+	printf("Open chosen_entries.html to view your selections\n");
 	return 0;
 }

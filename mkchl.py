@@ -83,7 +83,6 @@ h3{
 	<body>
 """
 dt = feeds[0][0]['datef']
-print(feeds[2])
 for feed in feeds:
     head = feed[0]
     hstring = hstring+ """<h1>Choices from """+head['subject']+""" feed on """+head['datef']+"""</h1>\n"""
