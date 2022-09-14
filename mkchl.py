@@ -11,6 +11,8 @@ def entry_template(entry):
 #need feed metadata
 with open("saved_entries.d","r") as sefile:
     chli = sefile.readlines()
+    if len(chli) == 0:
+        exit()
     feeds = []
     head = eval(chli[0].rstrip())
     entries = []
