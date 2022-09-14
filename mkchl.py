@@ -11,14 +11,11 @@ def entry_template(entry):
 #need feed metadata
 with open("saved_entries.d","r") as sefile:
     chli = sefile.readlines()
-    if len(chli) == 0:
+    if len(chli) < 6:
         exit()
     feeds = []
-    head = eval(chli[0].rstrip())
-    entries = []
-    lc = -1;
-    entry = {}
-    check = True
+    lc = 0
+    check = False 
     for line in chli:
         typ = (lc)%5
         if typ == 1:
@@ -29,15 +26,15 @@ with open("saved_entries.d","r") as sefile:
         elif typ == 3:
             entry['authors']=line.split(',')
             entry['authors'][-1]=entry['authors'][-1].rstrip()
-        elif typ == 4 and lc!=-1:
+        elif typ == 4:
             entry['abstract']=line.rstrip()
-        elif typ == 0 and lc!=0:
+            check = True
+        elif typ == 0:
             if check:
                 entries.append(entry)
-            else:
-                check = True
             if len(line)>4:
-                feeds.append([head,entries])
+                if lc>0:
+                    feeds.append([head,entries])
                 head =  eval(line.rstrip())
                 entries = []
                 check = False
