@@ -600,13 +600,13 @@ bool s_menu() /*main subject menu, returns true if program needs to restart (pos
 		
 	wrefresh(cat_win);
 	wrefresh(cho_win);
-	cat = make_menu(cat_win,"cat_list",cm,csv);
+	cat = make_menu(cat_win,"state/cat_list",cm,csv);
 	wrefresh(cat_win);
 	input = getch();
 	while(input!='q') /*choose category*/
 	{	
 		free(cat);
-		cat = refresh_menu(cat_win,"cat_list",input,&cm,&csv);
+		cat = refresh_menu(cat_win,"state/cat_list",input,&cm,&csv);
 
 		if(input == 'c')
 		{
@@ -620,11 +620,11 @@ bool s_menu() /*main subject menu, returns true if program needs to restart (pos
 		{
 			
 			free(path);
-			path = join_strings("subjects/",cat);
+			path = join_strings("state/subjects/",cat);
 
 			//fetch array with subject settings
 			free(tpath);
-			tpath = join_strings("subjects/",cat);
+			tpath = join_strings("state/subjects/",cat);
 
 			sbj = make_menu(sub_win,path,sm,ssv);
 			wrefresh(sub_win);

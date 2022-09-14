@@ -182,7 +182,7 @@ def get_old_entries(subject):
     lw_dl = est_to_gmt(calc_upload_deadline(pf_time,depth+1))
     up_dl = est_to_gmt(up_dl)
     #subtract 20 from entry count to capture anomalies
-    ent_count = ent_count - 20
+    ent_count = max(ent_count - 20,0)
     #build string for query
     query_string ="search_query=cat:"+subject
     query_string = query_string+"&sortBy=submittedDate&sortOrder=descending"
