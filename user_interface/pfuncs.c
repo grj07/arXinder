@@ -149,7 +149,7 @@ entries_header *fetch_header(char *sub){ /*loads header as json data through jan
 //to be run upon the exit of navigator. Running from navigator most sensible as a fin condition
 //need an intermediate buffer to copy entries from (the file itself?)
 void set_header(entries_header *head){ /*saves header to file*/
-	char filepath[] = "p_feeds/";
+	char filepath[] = "state/p_feeds/";
 	char * file_str;
 	char * fstr;
 	json_t* jtemp = NULL;
@@ -184,7 +184,7 @@ void set_header(entries_header *head){ /*saves header to file*/
 	fputs("\n",wfile);
 
 //efile is buffer file, renamed version of current subject file
-	efile = fopen("cursub","r");
+	efile = fopen("state/cursub","r");
 	l_length = getline(&line_buf, &l_size, efile);
 	l_length = getline(&line_buf, &l_size, efile);
 	while(l_length>= 0)
@@ -298,7 +298,7 @@ void * navigator(void *arg_struct ){
 	WINDOW *abswin = args->abwin;
 	int * input = args->inp;
 	bool *chsub = args->change_subject;
-	char temp[] = "cursub";
+	char temp[] = "state/cursub";
 
 
 	FILE *saved_entries;
@@ -340,7 +340,7 @@ void * navigator(void *arg_struct ){
 	char ** title_lines = NULL;
 	char ** abs_lines = NULL;
 	char ** auth_lines = NULL;
-	saved_entries = fopen("saved_entries.d","a");
+	saved_entries = fopen("state/saved_entries.d","a");
 	fprintf(saved_entries,"{\"subject\": \"%s\" ,\"datef\": \"%s\"}\n",head->subject,head->datef);
 	while(!fin)
 	{
@@ -455,7 +455,7 @@ void chosen_subjects(WINDOW *cho_win,int scl)/*displays subjects chosen from sub
 	ssize_t lsize;
 	getmaxyx(cho_win,wh,ww);
 	char *menu_item = calloc(ww-1,sizeof(char));
-	sub_list = fopen("subjects.conf","r");
+	sub_list = fopen("config/subjects.conf","r");
 	lsize = getline(&buf,&buf_size,sub_list);
 	while(lsize >=0)	
 	{
@@ -480,7 +480,7 @@ void chosen_subjects(WINDOW *cho_win,int scl)/*displays subjects chosen from sub
 void clear_sublist()/*clears subjects (empties file)*/
 {
 	FILE *sublist;
-	sublist = fopen("subjects.conf","w");
+	sublist = fopen("config/subjects.conf","w");
 	fclose(sublist);
 }
 
@@ -642,7 +642,7 @@ bool s_menu() /*main subject menu, returns true if program needs to restart (pos
 					clear_sublist();
 				if(input == '\n')/*subject selected, add to list*/
 				{
-					sub_file=fopen("subjects.conf","a");
+					sub_file=fopen("config/subjects.conf","a");
 					fprintf(sub_file,"%s\n",strtok(sbj ," ,"));
 					fclose(sub_file);
 					chosen_subjects(cho_win,0);

@@ -169,7 +169,7 @@ def get_old_entries(subject):
     depth = 0
     ent_count= 0
     while feed_string in conf['saved_feeds']:
-        with open("p_feeds/"+feed_string) as f_file:
+        with open("state/p_feeds/"+feed_string) as f_file:
             head = json.loads(f_file.readlines()[0])
         ent_count = ent_count+head["raw_no_of_entries"]
         depth = depth + 1
@@ -286,19 +286,19 @@ def store_to_file(entries,filename):
             
 
 #load in the current configuration
-with open('conf.json','r') as cfile:
+with open('config/conf.json','r') as cfile:
     conf = json.load(cfile)
 
 #Parsing the subject area
 #print('Your first argument was: '+sys.argv[1])
-with open('subjects.conf','r') as sfile:
+with open('config/subjects.conf','r') as sfile:
     lines=sfile.readlines()
     subjects=[line.rstrip() for line in lines]
 
 #update read feeds
 for feed in conf['saved_feeds']:
     if feed not in conf['read_feeds']:
-        with open("p_feeds/"+feed,"r") as feedfile:
+        with open("state/p_feeds/"+feed,"r") as feedfile:
             head = json.loads(feedfile.readlines()[0])
             if head['cur_entry_no'] > head['filtered_no_of_entries']:
                 conf['read_feeds'].append(feed)
@@ -309,7 +309,7 @@ next_feed = det_next_feed(conf,subjects)
 
 #construct strings for file manipulations 
 nf_string = next_feed[1]+next_feed[2]
-file_string = 'p_feeds/' + nf_string
+file_string = 'state/p_feeds/' + nf_string
 
 if conf['previous_feed'] in conf['read_feeds']:
     conf['previous_feed']=conf['next_feed']
@@ -335,5 +335,5 @@ if not nf_string in conf['saved_feeds']:
 #copy over file and save config
 shutil.copyfile(file_string,next_feed[1])
 conf['crosssub'].append(next_feed[1])
-with open('conf.json','w') as cfile:
+with open('config/conf.json','w') as cfile:
     json.dump(conf,cfile)

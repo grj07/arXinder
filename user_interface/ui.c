@@ -9,11 +9,11 @@
 #include "pfuncs.h"
 
 #define NTHREADS  2
-#define VERSION "0.0.3"
+#define VERSION "0.1"
 
-#define RESUME_FILE "res"
-#define RESUME_SCRIPT "resume.py"
-#define GE_SCRIPT "get_entries.py"
+#define RESUME_FILE "state/res"
+#define RESUME_SCRIPT "py_scripts/resume.py"
+#define GE_SCRIPT "py_scripts/get_entries.py"
 
 struct _entries_header{
 	char subject[20];
@@ -169,7 +169,7 @@ void run_arxinder(int col, int *sub_no){
 	char sub_inst[] = "s - change subjects";  
 	char sor_inst[] = "Use backspace to reject, return to save, u to undo";  
 	char qui_inst[] = "press q to quit";  
-	char temp[] = "cursub";
+	char temp[] = "state/cursub";
 
 	mvprintw(4,COLS-strlen(sub_inst),sub_inst);
 	mvprintw(3,COLS-strlen(sor_inst),sor_inst);
@@ -196,14 +196,14 @@ void run_arxinder(int col, int *sub_no){
 
 	
 	//Subjects in an array to be loaded into array of strings
-	int nsubs = line_counter("subjects.conf");
+	int nsubs = line_counter("config/subjects.conf");
 	char *subject_array[nsubs];
 	char *line_buffer=NULL;
 	size_t lbsize;
 	ssize_t line_size;
 
 	FILE *fp;
-	fp= fopen("subjects.conf","r");
+	fp= fopen("config/subjects.conf","r");
 	int ii=0;
 	line_size = getline(&line_buffer,&lbsize,fp);
 	subject_array[ii] = malloc((strlen(line_buffer))*sizeof(char));
@@ -242,7 +242,7 @@ void run_arxinder(int col, int *sub_no){
 				bomb("Please restart program to enact subject changes");
 		}
 		//Need to reload subjects if they change.
-		if(!line_counter("subjects.conf")) {
+		if(!line_counter("config/subjects.conf")) {
 			move(1,30);
 			printw("**Please choose at least one subject area**");
 			refresh();
@@ -316,7 +316,7 @@ int main()
 {
 	int ii, rc, col;
 	int sub_no;
-	if(!line_counter("subjects.conf")) 	
+	if(!line_counter("config/subjects.conf")) 	
 	{
 		initscr();			
 		if(COLS<80||LINES<20)
@@ -327,7 +327,7 @@ int main()
 		curs_set(0);
 	}
 	//In case subjects haven't been set yet
-	while(!(line_counter("subjects.conf"))) 	
+	while(!(line_counter("config/subjects.conf"))) 	
 	{
 		move(1,30);
 		printw("**Please choose at least one subject area**");
@@ -387,7 +387,7 @@ int main()
 	//loaded by resume_script
 	run_arxinder(col,&sub_no);
 
-	char script[] = "mkchl.py";
+	char script[] = "py_scripts/mkchl.py";
 	Py_Initialize();
 
 	FILE *fp = fopen(script, "r");

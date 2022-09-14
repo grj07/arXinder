@@ -1,28 +1,6 @@
-import datetime, holidays, pytz
-
-#Returns abstract free of HTML and newline formatting.
-def parse_feed_abstract(entry):
-    abstract = entry.description.lstrip("<p>")\
-                                .rstrip("</p>")\
-                                .rstrip()\
-                                .replace("\n"," ")
-    return abstract
-
-#Returns entry authors as list
-def parse_feed_authors(entry):
-    authors = entry.author.split(',')
-    parsed = []
-    for author in authors:
-        if '>' in author:
-            parsed.append(author.split('>')[1].split('<')[0])
-        else:
-            parsed.append(author)
-    return parsed
-
-#auth list to string for C program
-def auth_string(auth_list):
-    auth_str = ','.join(auth_list)
-    return(auth_str)
+import json
+import shutil
+import datetime, holidays, pytz, time
 
 #converts GMT time to EST
 def gmt_to_est(gmtdt):
@@ -67,12 +45,12 @@ def calc_upload_deadline(feed_time,n):
     #now n deadines before that
     return cutoff_time
 
-#gives date of original feed 
+#gives date of original feed (in gmt) of upload deadline (in EST)
 def calc_original_feed_date(upload_deadline):
     feed_time = upload_deadline
     while(feed_time.weekday() in [4,5]):
         feed_time = feed_time + datetime.timedelta(days=1)
-    feed_time = feed_time + datetime.timedelta(hours=6.5)
+    feed_time = feed_time.replace(hour = 20, minute = 30, second =0,microsecond = 0)
     feed_time = est_to_gmt(feed_time)
     return feed_time
 
@@ -81,21 +59,26 @@ def latest_feed_time(utc_time):
     cur_est_time = gmt_to_est(utc_time)
     est_min = 60*cur_est_time.hour+cur_est_time.minute
     check_time = cur_est_time
-    #check when latest upload deadline was
-    if est_min<20.5*60:
-        check_time = check_time-datetime.timedelta(days=1)
-    if check_time.weekday() == 6:
-        check_time = check_time-datetime.timedelta(days=2)
+    #check when latest upload deadline 
+    #skip back to latest deadline day
+    if est_min>14*60 and not no_deadl_today(cur_est_time):
+        #case where after deadline and after feed update
+        if est_min>20.5*60:
+            feed_date = check_time.replace(hour = 20, minute = 30, second =0,microsecond = 0)
+            return est_to_gmt(feed_date)
+        else:
+            check_time = check_time-datetime.timedelta(days=1) 
     while(no_deadl_today(check_time)):
         check_time = check_time-datetime.timedelta(days=1)
-    check_time = check_time.replace(hour = 18, minute = 30, second =0,microsecond = 0)
-    #if the latest deadline was friday, the latest feed will be thursdays EST (Friday GMT)
-    if check_time.weekday() == 4:
-        check_time = check_time-datetime.timedelta(days=1)
-    #Otherwise the latest feed will always come before the next deadline
-    feed_date = check_time.replace(hour = 20, minute = 30, second =0,microsecond = 0)
-    feed_date = est_to_gmt(feed_date)
-    return feed_date
+    deadl = check_time.replace(hour = 14, minute = 00, second =0,microsecond = 0)
+    feed_time = calc_original_feed_date(deadl)
+    #check whether latest feed time is before or after relevant time 
+    if feed_time > utc_time: 
+        deadl = deadl - datetime.timedelta(days=1)
+        while(no_deadl_today(check_time)):
+            deadl = deadl-datetime.timedelta(days=1)
+        feed_time = calc_original_feed_date(deadl)
+    return feed_time 
 
 #work out what the next feed to read is
 def det_next_feed(conf,subjects):
@@ -105,9 +88,10 @@ def det_next_feed(conf,subjects):
     date_str = pf_date.strftime("%d%m%Y")
     depth = 0
     doneq = False
+    feed_list = conf['read_feeds'] +[conf['previous_feed']]
     for sub in subjects:
         feed_str = sub+date_str
-        if feed_str in conf['read_feeds']:
+        if feed_str in feed_list:
             continue
         next_sub = sub
         doneq = True 
@@ -119,9 +103,45 @@ def det_next_feed(conf,subjects):
         date_str = pf_date.strftime("%d%m%Y")
         for sub in subjects:
             feed_str = sub+date_str
-            if feed_str in conf['read_feeds']:
+            if feed_str in feed_list:
                 continue
             next_sub = sub
             doneq = True 
             break
     return [depth,next_sub,date_str]
+
+
+#load in the current configuration
+with open('config/conf.json','r') as cfile:
+    conf = json.load(cfile)
+
+#Parsing the subject area
+with open('config/subjects.conf','r') as sfile:
+    lines=sfile.readlines()
+    subjects=[line.rstrip() for line in lines]
+
+with open("state/res","r") as rfile:
+    file = rfile.readlines()[0]
+    resume = file[0]
+    sub_no = file[1:]
+
+next_feed = det_next_feed(conf,subjects)
+if next_feed[1] == subjects[0] and next_feed[0]==0:
+    #This is the case where there is a full resume, 
+    #entry file is ready as get_entries has run
+    resume = '0'
+    sub_no = '0'
+    conf['next_feed'] = ' '
+    conf['previous_feed'] = ' '
+else:
+    resume = '1'
+    sub_no = sub_no
+    file_string = "state/p_feeds/"+conf['previous_feed']
+    shutil.copyfile(file_string,conf['previous_feed'][:-8])
+
+fstr = resume+' '+sub_no
+
+with open("state/res","w") as wfile:
+    wfile.write(fstr)
+with open('config/conf.json','w') as cfile:
+    json.dump(conf,cfile)

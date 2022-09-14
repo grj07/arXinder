@@ -9,7 +9,7 @@ def entry_template(entry):
     return(entstr)
 
 #need feed metadata
-with open("saved_entries.d","r") as sefile:
+with open("state/saved_entries.d","r") as sefile:
     chli = sefile.readlines()
     if len(chli) < 6:
         exit()
