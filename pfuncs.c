@@ -373,13 +373,13 @@ void * navigator(void *arg_struct ){
 		wrefresh(authwin);
 		wrefresh(abswin);
 
+		flushinp();
 		*input = getch();
 		switch(*input) /*Updates abstract  sroll value, changes entry number*/
 		{
 			case KEY_BACKSPACE:
 				entry_no= entry_no+1;
-				if(entry_no>no_of_entries)
-				{
+				if(entry_no>no_of_entries){
 					*chsub = 1;
 					fin = 1;
 				}
@@ -392,14 +392,22 @@ void * navigator(void *arg_struct ){
 						entries[entry_no-1].title,entries[entry_no-1].authors,
 									entries[entry_no-1].abstract);
 				entry_no=entry_no+1;
-				if(entry_no>no_of_entries)
-				{
+				if(entry_no>no_of_entries){
 					*chsub = 1;
 					fin = 1;
 				}
 				abs_scrl = 0;
 				auth_scrl = 0;
 				ran = 1;
+				break;
+			case 'u':
+				entry_no=entry_no-1;
+				ran = 1;
+				if(entry_no==0){
+					entry_no =1;		
+					ran=0;
+				}
+				auth_scrl = 0;
 				break;
 			case KEY_DOWN:
 				abs_scrl = new_scroll_value(abswin,nol_abs,abs_scrl+1);

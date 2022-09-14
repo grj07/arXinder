@@ -167,7 +167,7 @@ void run_arxinder(int col, int *sub_no){
 	WINDOW *title_win, *auth_win, *abs_win; 
 	//Instructions displayed
 	char sub_inst[] = "s - change subjects";  
-	char sor_inst[] = "Use backspace to reject, return to save";  
+	char sor_inst[] = "Use backspace to reject, return to save, u to undo";  
 	char qui_inst[] = "press q to quit";  
 	char temp[] = "cursub";
 
