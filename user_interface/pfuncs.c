@@ -74,8 +74,8 @@ int colours() /*Colours checks if the terminal can do colours, and returns 1 if 
 }
 
 
-void update_subs(int n, char *sub_array[],int nsubs) /*updates the subject display*/
-{		
+void update_subs(int n, char *sub_array[],int nsubs) {		
+/*updates the subject display*/
 	int jj=0;
 	int ll=0;
 	int dm, ctot;

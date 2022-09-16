@@ -1,49 +1,42 @@
-#include <Python.h>
-#include <ncurses.h> /*ncurses library, includes stdio.h*/
-#include <math.h>    /*Floor and ceilings*/
-#include <pthread.h>
-#include <time.h>
-#include <unistd.h>
-#include <locale.h>
-#include "gfuncs.h"
-#include "pfuncs.h"
+/* 
+                             ******************* 
+******************************* C SOURCE FILE ******************************* 
+**                           *******************                           ** 
+**                                                                         ** 
+** project   : ArXinder                                                    **  
+** filename  : ui.c                                                        ** 
+** version   : 0.1                                                         ** 
+** date      : 16 Sep 2022             		                           ** 
+**                                                                         ** 
+***************************************************************************** 
+**                                                                         ** 
+** Code author: Guy R. Jehu - grj90@pm.me                                  ** 
+**                                                                         ** 
+***************************************************************************** 
+ 
+VERSION HISTORY: 
+---------------- 
+ 
+Version     : 0.1 
+Date        : 16 Sep 2022
+Description : Original version. 
+ 
+*/ 
+ 
+/****************************************************************************/
+/**                                                                        **/
+/**                     MODULES USED                                       **/
+/**                                                                        **/
+/****************************************************************************/
+#include "ui.h"
 
-#define NTHREADS  2
-#define VERSION "0.1"
-
-#define RESUME_FILE "state/res"
-#define RESUME_SCRIPT "py_scripts/resume.py"
-#define GE_SCRIPT "py_scripts/get_entries.py"
-
-struct _entries_header{
-	char subject[20];
-	int raw_no_of_entries;
-	char date[9];
-	char datef[18];
-	int cur_entry_no;
-	int filtered_no_of_entries;
-};
-
-struct _entry{
-	char arxiv_no[12];
-	char title[300];
-	char authors[3000];
-	char abstract[2000];
-};
-
-//Navigator argument structure needed to thread navigator with python script
-struct _nav_arg_struct{
-	WINDOW *twin;
-       	WINDOW *awin;
-       	WINDOW	*abwin;
-	int * inp;
-	bool *change_subject;
-	int *sub_no;
-};
-
-//This function runs Python script
-void *call_datprc(void *pyscript){
-	char *scriptname = (char *)pyscript;
+/****************************************************************************/
+/**                                                                        **/
+/**                     LOCAL FUNCTIONS                                    **/
+/**                                                                        **/
+/****************************************************************************/
+void* call_datprc(void* pyscript){
+	char* scriptname = (char* )pyscript;
 	FILE* fp;
 
 	Py_Initialize();
@@ -57,21 +50,19 @@ void *call_datprc(void *pyscript){
 }
 
 //Title screen: animation while first subject entries load
-void *title_screen(void * colo){
-	int col = *(int *)colo;
-	char title1[]="ar";
-	char title2[]="inder";
+void* title_screen(void* col){
+	bool colours = *(int*)col;
+	char title1[] = "ar", title2[]= "inder" ;
 	char subtitle[]="sort and file the new papers from the arXiv.";
 	int disp = (strlen(title1)+strlen(title2)+1)/2;
-	int kk;
+	int i;
 
 	curs_set(0);
-	//arXinder title
 	move(LINES/2,COLS/2-disp);
-	add_colour(1,col);
+	addColour(1,col);
 	typewriter(title1,120);
 	refresh();
-	add_colour(2,col);
+	addColour(2,col);
 	attron(A_BOLD);
 	move(LINES/2-1,COLS/2-disp-1+strlen(title1));
 	addch('\\');
@@ -98,7 +89,7 @@ void *title_screen(void * colo){
 	move(1,1);
 
 	//Delete lines gradually
-	for(kk=1;kk<=LINES/2-2;kk++){
+	for(i=1;i<=LINES/2-2;i++){
 		deleteln();
 		refresh();
 		usleep(20000);
@@ -124,19 +115,19 @@ void *title_screen(void * colo){
 	refresh();
 }
 
-void make_title(int col){
+void make_title(bool colours){
 	char title[]="arXinder";
 	char subtitle[]="new papers from the arXiv:";
 
-	add_colour(1,col);
+	add_colour(1,colours);
 	mvaddstr(2,0,title);
-	add_colour(2,col);
+	add_colour(2,colours);
 	mvaddch(2,2,'X');
 	mvaddch(1,1,'\\');
 	mvaddch(3,3,'\\');
 	mvaddch(1,3,'/');
 	mvaddch(3,1,'/');
-	add_colour(3,col);
+	add_colour(3,colours);
 	mvaddstr(4,0,subtitle);
 
 	curs_set(0);
@@ -144,12 +135,12 @@ void make_title(int col){
 	noecho();
 }
 
-int resume(int * sub_no){
+int resume(int*  sub_no){
 	FILE *fconf;
 	FILE *fscript;
 	int res=0;
 
-	Py_Initialize();
+	Py_Initialize(); /*should be program-wide*/
 
 	fscript = fopen(RESUME_SCRIPT, "r");
 	PyRun_SimpleFile(fscript,RESUME_SCRIPT);
@@ -162,9 +153,11 @@ int resume(int * sub_no){
 	return(res);
 }
 
-void run_arxinder(int col, int *sub_no){
+void run_arxinder(int colours, int* subNo){
 	//declaring principle windows to display
-	WINDOW *title_win, *auth_win, *abs_win; 
+	WINDOW* title_win;
+       	WINDOW* auth_win; 
+	WINDOW* abs_win; 
 	//Instructions displayed
 	char sub_inst[] = "s - change subjects";  
 	char sor_inst[] = "Use backspace to reject, return to save, u to undo";  
@@ -181,7 +174,7 @@ void run_arxinder(int col, int *sub_no){
 	int input, scrl, subq;
 
 	//This needs to become an array of pointers to subject strings. 
-	char *sub; /*the current subject area being explored*/
+	char* sub; /*the current subject area being explored*/
 	size_t sub_size;
 
 	//entries to be displayed here
@@ -196,16 +189,16 @@ void run_arxinder(int col, int *sub_no){
 
 	
 	//Subjects in an array to be loaded into array of strings
-	int nsubs = line_counter("config/subjects.conf");
-	char *subject_array[nsubs];
-	char *line_buffer=NULL;
-	size_t lbsize;
-	ssize_t line_size;
+	int nSubs = lineCounter(SUBJECTS_FILE);
+	char* subjectArray[nSubs];
+	char* lineBuffer=NULL;
+	size_t lineBuffersize;
+	ssize_t lineSize;
 
-	FILE *fp;
-	fp= fopen("config/subjects.conf","r");
+	FILE* fp;
+	fp= fopen(SUBJECTS_FILE,"r");
 	int ii=0;
-	line_size = getline(&line_buffer,&lbsize,fp);
+	lineSize = getline(&line_buffer,&lbsize,fp);
 	subject_array[ii] = malloc((strlen(line_buffer))*sizeof(char));
 	strncpy(subject_array[ii],line_buffer,strlen(line_buffer)-1);
 	*(subject_array[ii]+strlen(line_buffer)-1)='\0';
@@ -228,7 +221,7 @@ void run_arxinder(int col, int *sub_no){
 	bool chsub=0;
 	bool acc = 0;
 	int rc; /*For the threads*/
-	nav_arg_struct *args = malloc(sizeof(nav_arg_struct));
+	nav_arg_struct* args = malloc(sizeof(nav_arg_struct));
 	args->twin = title_win;
 	args->awin = auth_win;
 	args->abwin = abs_win;
@@ -289,7 +282,7 @@ void run_arxinder(int col, int *sub_no){
 
 		pthread_t uthreads[NTHREADS];
 		rc = pthread_create(&uthreads[0], NULL, call_datprc,GE_SCRIPT);
-		rc = pthread_create(&uthreads[1], NULL, navigator,(void *)args);
+		rc = pthread_create(&uthreads[1], NULL, navigator,(void* )args);
 		
 		for (ii=0; ii<NTHREADS; ii++){/*wait for threads to finish*/
 			rc = pthread_join(uthreads[ii], NULL);
@@ -304,7 +297,7 @@ void run_arxinder(int col, int *sub_no){
 		free(subject_array[ii]);
 	}
 
-	FILE *f_res= fopen(RESUME_FILE,"w");
+	FILE* f_res= fopen(RESUME_FILE,"w");
 	fprintf(f_res,"%d %d", 0, *sub_no);
 	fclose(f_res);
 
@@ -314,21 +307,20 @@ void run_arxinder(int col, int *sub_no){
 
 int main()
 {
-	int ii, rc, col;
-	int sub_no;
-	if(!line_counter("config/subjects.conf")) 	
-	{
+	int i, rc;
+	bool colour;
+	int subNo;
+	if(!lineCounter(SUBJECTS_FILE)) {
 		initscr();			
 		if(COLS<80||LINES<20)
-			bomb("Terminal too small, please use a larger terminal");
+			bomb("Please use a larger terminal");
 		col = 0; 
 		keypad(stdscr, TRUE);		
 		noecho();
 		curs_set(0);
 	}
 	//In case subjects haven't been set yet
-	while(!(line_counter("config/subjects.conf"))) 	
-	{
+	do{
 		move(1,30);
 		printw("**Please choose at least one subject area**");
 		refresh();
@@ -336,10 +328,10 @@ int main()
 		refresh();
 		move(1,20);
 		if(s_menu()){
-			bomb("Please restart program to enact subject changes");
+			bomb("Run program again to enact subject changes");
 			endwin();
 		}
-	}
+	}while(!(lineCounter(SUBJECTS_FILE)));
 
 
 	int re = resume(&sub_no);
@@ -349,7 +341,7 @@ int main()
 
 	//initialise ncurses mode
 	initscr();			
-	if(COLS<80||LINES<20)
+	if(COLS<MINCOLS||LINES<MINLINES)
 		bomb("Terminal too small, please use a larger terminal");
 
 	col = 0; /*col=0 is black and white mode*/
@@ -368,10 +360,10 @@ int main()
 		rc = pthread_create(&threads[0], NULL, call_datprc,GE_SCRIPT);
 		rc = pthread_create(&threads[1], NULL, title_screen,&col);
 		
-		/* wait for threads to finish */
-		for (ii=0; ii<NTHREADS; ii++) 
+		/* wait for threads to finish*/
+		for (i=0; i<NTHREADS; i++) 
 		{
-			rc = pthread_join(threads[ii], NULL);
+			rc = pthread_join(threads[i], NULL);
 		}
 	}
 	else
@@ -390,12 +382,18 @@ int main()
 	char script[] = "py_scripts/mkchl.py";
 	Py_Initialize();
 
-	FILE *fp = fopen(script, "r");
+	FILE* fp = fopen(script, "r");
 	PyRun_SimpleFile(fp, script);
 
 	Py_Finalize();
 	fclose(fp);
 
-	printf("Open chosen_entries.html to view your selections\n");
+	printf("Open chosen_entries.html with a browser application to view your selections.\n");
 	return 0;
 }
+
+/****************************************************************************/
+/**                                                                        **/
+/**                               EOF                                      **/
+/**                                                                        **/
+/****************************************************************************/
