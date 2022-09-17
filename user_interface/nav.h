@@ -20,10 +20,9 @@ VERSION HISTORY:
 Version     : 1 
 Date        : 16 Sep 2022 
 Revised by  : Guy R. Jehu 
-Description : Original version.  This module contains definitions necessary 
-				to extract data from files and navigate 
-				displayed entries on the screen and display 
-				metadata
+Description : Original version. Functions and structs  necessary to extract 
+				data from files and navigate displayed 
+				entries on the screen and display metadata
 */ 
  
 /****************************************************************************/ 
@@ -31,18 +30,20 @@ Description : Original version.  This module contains definitions necessary
 /**                     MODULES USED                                       **/ 
 /**                                                                        **/ 
 /****************************************************************************/ 
+#include "utils.h"
 #include <ncurses.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <jansson.h>
-#include "pfuncs.h"
-#include "gfuncs.h"
 /****************************************************************************/ 
 /**                                                                        **/ 
 /**                     DEFINITIONS AND MACROS                             **/ 
 /**                                                                        **/ 
 /****************************************************************************/ 
+#define PREV_FEEDS "state/p_feeds"
+#define CUR_SUBJECT "state/cursub"
+#define SAVED_ENTRIES "state/saved_entries.d"
  
 /****************************************************************************/ 
 /**                                                                        **/ 
@@ -52,7 +53,8 @@ Description : Original version.  This module contains definitions necessary
  
 struct _entries_header; /*structs for entry header from file - Read from json using jansson*/
 struct _entry;          /*entries from file*/
-struct _nav_arg_struct; /*needed to pass arguments to threaded function (navigator)*/
+struct _nav_arg_struct; /*needed to pass arguments to threaded function 
+			  (navigator)*/
 
 typedef struct _entries_header entries_header;
 typedef struct _entry entry;
@@ -69,14 +71,17 @@ typedef struct _nav_arg_struct nav_arg_struct;
 /**                     EXPORTED FUNCTIONS                                 **/ /**                                                                        **/ 
 /****************************************************************************/ 
  
-extern void update_subs(int n, char *sub_array[],int nsubs);/*updates the subject display*/
-extern void ecount_update(int ent_count,int no_of_entries);/*updates the entry number displayed*/
-/*manage_entries.c*/
-extern entries_header *fetch_header(char *sub);/*loads header as json data through jansson*/
-extern void set_header(entries_header *head);/*saves header to file*/
-extern entry *fetch_entries(char *subject,int no_of_entries);/*populates array of entry structs with entry data*/
-/*utils.c*/
-extern void * navigator(void *arg_struct );/*browse arxiv entries*/
+extern void updateSubs(int n, char *subArray[],int nSubs);
+/*updates the subject display*/
+extern void updateEntryCount(int entryCount,int noOfEntries);
+/*updates the entry number displayed*/
+extern entries_header *fetchHeader(char *filePath);
+/*loads header as json data through jansson*/
+extern void setHeader(entries_header *head);/*saves header to file*/
+extern entry *fetchEntries(char *filePath,int noOfEntries);
+/*populates array of entry structs with entry data*/
+extern void * navigator(void *argStruct );
+/*main function for browsing arxiv entries*/
 /****************************************************************************/ 
 /**                                                                        **/ 
 /**                               EOF                                      **/ 

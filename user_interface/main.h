@@ -58,13 +58,12 @@ Description : Original version.
 /**                     TYPEDEFS AND STRUCTURES                            **/ 
 /**                                                                        **/ 
 /****************************************************************************/ 
-struct _nav_arg_struct{ /*argument structure for navigator (pfuncs.c)*/
-	WINDOW* twin;
-       	WINDOW* awin;
-       	WINDOW	*abwin;
-	int*  inp;
-	bool* change_subject;
-	int* sub_no;
+struct _nav_arg_struct{ /*struct for argument of navigator*/
+	WINDOW *tWin;
+       	WINDOW *aWin;
+       	WINDOW	*abWin;
+	int *inp;
+	bool *changeSubject;
 };
 /****************************************************************************/
 /**                                                                        **/
