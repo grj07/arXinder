@@ -3,7 +3,7 @@ Software to assist in sorting daily feeds of journal articles and references fro
 
 Version 0.1
 
-Dependencies
+Build Dependencies:
 Building and running arXinder require the following to be installed on the users system:
 
 	gcc
