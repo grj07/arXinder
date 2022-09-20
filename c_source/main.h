@@ -44,7 +44,7 @@ Description : Original version.
 /****************************************************************************/ 
 #define VERSION "0.1"
 #define NTHREADS  2
-#define MIN_COLS 50
+#define MIN_COLS 114
 #define MIN_LINES 20
 #define SUBJECTS_FILE "config/subjects.conf"
 #define RESUME_FILE "state/res"
