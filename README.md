@@ -15,9 +15,9 @@ Building and running arXinder require the following to be installed on the users
 
 Furthermore, the following python libraries are needed (also listed in requirements.txt):
 
-	feedparser
-	holidays
-	pytz
+ - feedparser
+ - holidays
+ - pytz
 
 #### gcc
 Is the GNU compiler for C. It should already be installed on most distributions, or at least 
