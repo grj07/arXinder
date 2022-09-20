@@ -4,13 +4,13 @@
 **                           *******************                           ** 
 **                                                                         ** 
 ** project   : ArXinder                                                    **  
-** filename  : ui.c                                                        ** 
+** filename  : main.c                                                      ** 
 ** version   : 0.1                                                         ** 
 ** date      : 16 Sep 2022             		                           ** 
 **                                                                         ** 
 ***************************************************************************** 
 **                                                                         ** 
-** Code author: Guy R. Jehu - grj90@pm.me                                  ** 
+**   author  : Guy R. Jehu - grj90@pm.me                                   ** 
 **                                                                         ** 
 ***************************************************************************** 
  
@@ -23,22 +23,20 @@ Description : Original version.
 	      Main source code for arXinder.
 */ 
  
-#define _TPL_C_SRC 
+#ifndef _main_
+#define _main_
 
 /****************************************************************************/ 
 /**                                                                        **/ 
 /**                     MODULES USED                                       **/ 
 /**                                                                        **/ 
 /****************************************************************************/ 
+#include "menu.h"
+#include "nav.h"
 #include <Python.h>
-#include <ncurses.h> /*ncurses library, includes stdio.h*/
-#include <math.h>    /*Floor and ceilings*/
 #include <pthread.h>
 #include <time.h>
-#include <unistd.h>
 
-#include "gfuncs.h"
-#include "pfuncs.h"
 /****************************************************************************/ 
 /**                                                                        **/ 
 /**                     DEFINITIONS AND MACROS                             **/ 
@@ -46,13 +44,20 @@ Description : Original version.
 /****************************************************************************/ 
 #define VERSION "0.1"
 #define NTHREADS  2
-#define MINCOLS 160
-#define MINROWS 90
+#define MIN_COLS 50
+#define MIN_LINES 20
 #define SUBJECTS_FILE "config/subjects.conf"
 #define RESUME_FILE "state/res"
 #define RESUME_SCRIPT "py_scripts/resume.py"
 #define GE_SCRIPT "py_scripts/get_entries.py"
 #define MAKE_HTML_SCRIPT "py_scripts/mk_html.py"
+#define CUR_SUB_FILE "state/cursub"
+
+#define VIEW_CH_INST "Open chosen_entries.html with a browser application to view your selections.\n"
+#define SUB_INST "s - change subjects"
+#define SORT_INST "Use backspace to reject, return to save, u to undo"
+#define QUIT_INST "press q to quit"
+#define RESTART_INST "Please restart program to enact subject changes"
 /****************************************************************************/ 
 /**                                                                        **/ 
 /**                     TYPEDEFS AND STRUCTURES                            **/ 
@@ -65,6 +70,7 @@ struct _nav_arg_struct{ /*struct for argument of navigator*/
 	int *inp;
 	bool *changeSubject;
 };
+#endif
 /****************************************************************************/
 /**                                                                        **/
 /**                               EOF                                      **/

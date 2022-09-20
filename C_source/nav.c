@@ -25,18 +25,7 @@ Description : Original version.
  
 */ 
  
- 
-/****************************************************************************/ 
-/**                                                                        **/ 
-/**                     MODULES USED                                       **/ 
-/**                                                                        **/ 
-/****************************************************************************/ 
- 
-/****************************************************************************/ 
-/**                                                                        **/ 
-/**                     DEFINITIONS AND MACROS                             **/ 
-/**                                                                        **/ 
-/****************************************************************************/ 
+#include "nav.h"
  
 /****************************************************************************/ 
 /**                                                                        **/ 
@@ -70,24 +59,6 @@ struct _nav_arg_struct{ /*struct for argument of navigator*/
  
 /****************************************************************************/ 
 /**                                                                        **/ 
-/**                     PROTOTYPES OF LOCAL FUNCTIONS                      **/ 
-/**                                                                        **/ 
-/****************************************************************************/ 
- 
-/****************************************************************************/ 
-/**                                                                        **/ 
-/**                     EXPORTED VARIABLES                                 **/ 
-/**                                                                        **/ 
-/****************************************************************************/ 
- 
-/****************************************************************************/ 
-/**                                                                        **/ 
-/**                     GLOBAL VARIABLES                                   **/ 
-/**                                                                        **/ 
-/****************************************************************************/ 
- 
-/****************************************************************************/ 
-/**                                                                        **/ 
 /**                     EXPORTED FUNCTIONS                                 **/ 
 /**                                                                        **/ 
 /****************************************************************************/ 
@@ -95,7 +66,7 @@ void updateSubs(int subjectNo,char *subjectArray[],int noOfSubjects){
 /*updates the subject display*/
 	int i, iMod;
 	
-	int xPos = strlen(subjectArray[n])+5;
+	int xPos = strlen(subjectArray[subjectNo])+5;
 
 	for(i= subjectNo;i<noOfSubjects+subjectNo;i++){
 	/*computes how many characters needed to display subjects*/
@@ -106,23 +77,23 @@ void updateSubs(int subjectNo,char *subjectArray[],int noOfSubjects){
 	move(2,20); /*print the current subject in boldface*/
 	clearText(xPos);
 	attron(A_BOLD);
-	mvprintw(2,20,subjectArray[n]);
+	mvprintw(2,20,subjectArray[subjectNo]);
 	attroff(A_BOLD);
 
-	xPos = strlen(subjectArray[n])+5;
+	xPos = strlen(subjectArray[subjectNo])+5;
 
 	for(i=subjectNo+1;i<noOfSubjects+subjectNo;i++){
 	/*prints subject array across top of screen*/
 		iMod = i % noOfSubjects;
-		mvprintw(2,20+xPos,subjectArray[ll]);
-		xPos = xPos + max(strlen(subjectArray[ll])+5,0);
+		mvprintw(2,20+xPos,subjectArray[iMod]);
+		xPos = xPos + max(strlen(subjectArray[iMod])+5,0);
 	}
 }
 
 void updateEntryCount(int entryNo,int noOfEntries){
 /*updates the entry number displayed*/
 	move(3,19);
-	clear_text(9);
+	clearText(9);
 	if(entryNo<10)
 		mvprintw(3,21,"%d/%d",entryNo,noOfEntries);
 	else if(entryNo < 100)
@@ -167,7 +138,7 @@ entries_header *fetchHeader(char *filePath){
 
 void setHeader(entries_header *head){ /*saves header to file*/
 	char *str, *filePath;
-	json_t* jtemp = NULL;
+	json_t* jTemp = NULL;
 	char* newHead = NULL;/*string version of new header*/
 	
 	char * lineBuf=NULL;
@@ -179,18 +150,18 @@ void setHeader(entries_header *head){ /*saves header to file*/
 
 	/*create json object from struct*/
 	json_t* root = json_object(); 
-	jtemp = json_string(head->subject);
-	json_object_set_new(root, "subject", jtemp);
-	jtemp = json_integer(head->rawNoOfEntries);
-	json_object_set_new(root, "raw_no_of_entries", jtemp);
-	jtemp = json_string(head->date);
-	json_object_set_new(root, "date", jtemp);
-	jtemp = json_string(head->dateF);
-	json_object_set_new(root, "datef", jtemp);
-	jtemp = json_integer(head->curEntryNo);
-	json_object_set_new(root, "cur_entry_no", jtemp);
-	jtemp = json_integer(head->filteredNoOfEntries);
-	json_object_set_new(root, "filtered_no_of_entries", jtemp);
+	jTemp = json_string(head->subject);
+	json_object_set_new(root, "subject", jTemp);
+	jTemp = json_integer(head->rawNoOfEntries);
+	json_object_set_new(root, "raw_no_of_entries", jTemp);
+	jTemp = json_string(head->date);
+	json_object_set_new(root, "date", jTemp);
+	jTemp = json_string(head->dateF);
+	json_object_set_new(root, "datef", jTemp);
+	jTemp = json_integer(head->curEntryNo);
+	json_object_set_new(root, "cur_entry_no", jTemp);
+	jTemp = json_integer(head->filteredNoOfEntries);
+	json_object_set_new(root, "filtered_no_of_entries", jTemp);
 	newHead = json_dumps(root,0);
 
 	str = joinStrings(PREV_FEEDS,head->subject);
@@ -294,9 +265,9 @@ void *navigator(void *argStruct ){
 	int titleWinH, titleWinW, authWinH, authWinW, absWinW, absWinH;
 
 	/*read in dimensions of windows*/
-	getmaxyx(twin,titleWinH,titleWinW);
-	getmaxyx(authwin,authWinH,authWinW);
-	getmaxyx(abswin,absWinH,absWinW);
+	getmaxyx(titleWin,titleWinH,titleWinW);
+	getmaxyx(authWin,authWinH,authWinW);
+	getmaxyx(absWin,absWinH,absWinW);
 	/*reduce to size of window content*/
 	titleWinH = titleWinH-3;
 	titleWinW = titleWinW-4;
@@ -306,16 +277,16 @@ void *navigator(void *argStruct ){
 	absWinW = absWinW-4;
 
 	//Entry data to display
-	entries_header *head = fetch_header(CUR_SUBJECT);
+	entries_header *head = fetchHeader(CUR_SUBJECT);
 	entryNo = head->curEntryNo;
 
 	bool fin=0; /*True when end of subject area reached*/
 
-	entry *entries = fetch_entries(CUR_SUBJECT,noOfEntries);
+	entry *entries = fetchEntries(CUR_SUBJECT,noOfEntries);
 
 	int absScrl=0, authScrl = 0;
 
-	mvprintw(4,40,"(%s)",head->datef);
+	mvprintw(4,40,"(%s)",head->dateF);
 	refresh();
 
 	//Entries have been fetched - can now rename file
@@ -330,45 +301,48 @@ void *navigator(void *argStruct ){
 
 	fprintf(savedEntries,
 		"{\"subject\": \"%s\" ,\"datef\": \"%s\"}\n",
-		head->subject,head->datef);
+		head->subject,head->dateF);
 
 	while(!fin)
 	{
 		//refreshing displayed windows
-		UpdateEntryCount(entryNo,noOfEntries);
+		updateEntryCount(entryNo,noOfEntries);
 
 		titleLines = toLines(entries[entryNo-1].title,titleWinW,
 				&nolTitle); 
 		updateWin(titleWin,titleLines,nolTitle, 0, "Window too small");
-		freeLines(titleLines);
+		free2DArray(titleLines);
 
 		authLines =  commaSplit(entries[entryNo-1].authors,
 				&nolAuths, authWinW);
 		updateWin(authWin,authLines,nolAuths,authScrl,
 						"Use PgUp/PgDn to scroll");
-		freeLines(authLines);
+		free2DArray(authLines);
 
 		absLines = toLines(entries[entryNo-1].abstract,
 							absWinW,&nolAbs); 
 		updateWin(absWin,absLines,nolAbs, absScrl, 
 				"Use arrowkeys to scroll");
-		freeLines(absLines);
+		free2DArray(absLines);
 
 		if(ran){
 			attron(A_BOLD);
 			move(4,28);
-			clear_text(10);
+			clearText(10);
 			move(4,28);
 			typewriter(entries[entryNo-1].arxivNo,40);
 			attroff(A_BOLD);
 			ran=0;
 		}
+
 		wrefresh(titleWin);
 		wrefresh(authWin);
 		wrefresh(absWin);
 
 		flushinp();
+
 		*input = getch();
+
 		switch(*input){ 
 		/*controls abstract scroll value, changes entry number*/
 			case KEY_BACKSPACE:
@@ -384,7 +358,7 @@ void *navigator(void *argStruct ){
 			case '\n':
 				fprintf(savedEntries,
 					"\n%s\n%s\n%s\n%s\n",
-					entries[entryNo-1].arxiv_no,
+					entries[entryNo-1].arxivNo,
 					entries[entryNo-1].title,
 					entries[entryNo-1].authors,
 					entries[entryNo-1].abstract);
@@ -407,22 +381,22 @@ void *navigator(void *argStruct ){
 				authScrl = 0;
 				break;
 			case KEY_DOWN:
-				absScrl = new_scroll_value(abswin,nolAbs,
+				absScrl = newScrollValue(absWin,nolAbs,
 								absScrl+1);
 				ran = 0;
 				break;
 			case KEY_UP:
-				absScrl = new_scroll_value(abswin,nolAbs,
+				absScrl = newScrollValue(absWin,nolAbs,
 								absScrl-1);
 				ran = 0;
 				break;
 			case KEY_NPAGE:
-				authScrl = new_scroll_value(authwin,nolAuths,
-								  authScrl+1);
+				authScrl = newScrollValue(authWin,nolAuths,
+								authScrl+1);
 				ran = 0;
 				break;
 			case KEY_PPAGE:
-				authScrl = new_scroll_value(authwin,nolAuths,
+				authScrl = newScrollValue(authWin,nolAuths,
 							       	  authScrl-1);
 				ran = 0;
 				break;
@@ -440,22 +414,11 @@ void *navigator(void *argStruct ){
 	}
 	fclose(savedEntries);
 	free(entries);
-	head->cur_entryNo = entryNo;
+	head->curEntryNo = entryNo;
 	setHeader(head);
 	free(head);
 	return NULL;
 }
-/****************************************************************************/
-/**                                                                        **/
-/**                     LOCAL FUNCTIONS                                    **/
-/**                                                                        **/
-/****************************************************************************/ 
-
-/****************************************************************************/
-/**                                                                        **/
-/**                     MAIN FUNCTION                                      **/
-/**                                                                        **/
-/****************************************************************************/ 
 
 /****************************************************************************/
 /**                                                                        **/

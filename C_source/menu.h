@@ -1,52 +1,55 @@
  
 /* 
                              ******************* 
-******************************* C SOURCE FILE ******************************* 
+******************************* C HEADER FILE ******************************* 
 **                           *******************                           ** 
 **                                                                         ** 
 ** project   : arXinder                                                    **  
-** filename  : nc_utils.c                                                  ** 
+** filename  : menu.h                                                      ** 
 ** version   : 0.1                                                         ** 
 ** date      : 16 Sep 2022                                                 ** 
 **                                                                         ** 
 ***************************************************************************** 
 **                                                                         ** 
-** author    : Guy R. Jehu                                                 ** 
+**   author  : Guy R. Jehu - grj90@pm.me                                   ** 
 **                                                                         ** 
 ***************************************************************************** 
  
 VERSION HISTORY: 
 ---------------- 
  
-Version     : 1 
+Version     : 0.1 
 Date        : 16 Sep 2022 
 Revised by  : Guy R. Jehu 
-Description : Original version. 
- 
+Description : Original version.  Subjects can be selected through the menu 
+				defined	here, which is modifies subjects.conf.
 */ 
  
- 
+#ifndef _menu_
+#define _menu_
 /****************************************************************************/ 
 /**                                                                        **/ 
 /**                     MODULES USED                                       **/ 
 /**                                                                        **/ 
 /****************************************************************************/ 
+#include "utils.h"
+#include "nc_utils.h"
  
 /****************************************************************************/ 
 /**                                                                        **/ 
 /**                     DEFINITIONS AND MACROS                             **/ 
 /**                                                                        **/ 
 /****************************************************************************/ 
+
+#define SUBJECT_FILE "config/subjects.conf"
+#define CAT_FILE "state/cat_list"
+#define SUBJ_PATH "state/subjects/"
+
+#define C_INSTRUCTIONS "c - clear subjects"
  
 /****************************************************************************/ 
 /**                                                                        **/ 
 /**                     TYPEDEFS AND STRUCTURES                            **/ 
-/**                                                                        **/ 
-/****************************************************************************/ 
- 
-/****************************************************************************/ 
-/**                                                                        **/ 
-/**                     PROTOTYPES OF LOCAL FUNCTIONS                      **/ 
 /**                                                                        **/ 
 /****************************************************************************/ 
  
@@ -58,56 +61,26 @@ Description : Original version.
  
 /****************************************************************************/ 
 /**                                                                        **/ 
-/**                     GLOBAL VARIABLES                                   **/ 
-/**                                                                        **/ 
+/**                     EXPORTED FUNCTIONS                                 **/ /**                                                                        **/ 
 /****************************************************************************/ 
  
+extern void clearSubjects();
+/*clears subjects (empties file)*/
+extern void chosenSubjects(WINDOW* choicesWin, int scrl);
+/*displays subjects chosen from subjects.conf*/
+extern char *makeMenu(WINDOW* mWin,char* filePath,int item, int scrl);
+/*prints an instance of the menu to mWin, *
+ *and returns name of for use in file path */
+extern char *refreshMenu(WINDOW* mWin,char* filePath,int input, 
+						int* menuItem,int* scrl);
+/*Refreshes menu after key pressed (input)*/
+extern bool subjectMenu();
+/*main subject menu, returns true if program needs to restart*/
+
+#endif 
 /****************************************************************************/ 
 /**                                                                        **/ 
-/**                     EXPORTED FUNCTIONS                                 **/ 
+/**                               EOF                                      **/ 
 /**                                                                        **/ 
 /****************************************************************************/ 
-void typewriter(char *typedText, int timeStep){
-/*Types out from cursor position with gap timestep in milliseconds*/
-	char *ch;
-	ch = typedText;
-	while(*ch){
-		addch(*pos);
-		pos++;
-		refresh();
-		usleep(timestep*1000);
-	}
-}
-
-//sets colour if qu true (!=0)
-//Colour should be global variable
-void addColour(int icp,bool colours){
-	if(colours)
-		attron(COLOR_PAIR(icp));
-}
-
-//removes colour if qu true (!=0)
-void removeColour(int icp,bool colours){
-	if(colours)
-		attroff(COLOR_PAIR(icp);
-}
-
- 
-/****************************************************************************/
-/**                                                                        **/
-/**                     LOCAL FUNCTIONS                                    **/
-/**                                                                        **/
-/****************************************************************************/ 
-
-/****************************************************************************/
-/**                                                                        **/
-/**                     MAIN FUNCTION                                      **/
-/**                                                                        **/
-/****************************************************************************/ 
-
-/****************************************************************************/
-/**                                                                        **/
-/**                               EOF                                      **/
-/**                                                                        **/
-/****************************************************************************/
 

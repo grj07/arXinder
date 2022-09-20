@@ -26,29 +26,13 @@ Description : Original version.
 */ 
  
  
-/****************************************************************************/ 
-/**                                                                        **/ 
-/**                     MODULES USED                                       **/ 
-/**                                                                        **/ 
-/****************************************************************************/ 
 #include "utils.h" 
-/****************************************************************************/ 
-/**                                                                        **/ 
-/**                     EXPORTED VARIABLES                                 **/ 
-/**                                                                        **/ 
-/****************************************************************************/ 
- 
+
 /****************************************************************************/ 
 /**                                                                        **/ 
 /**                     EXPORTED FUNCTIONS                                 **/ 
 /**                                                                        **/ 
 /****************************************************************************/ 
-void bomb(char *msg){
-	endwin();
-	puts(msg);
-	exit(1);
-}
-
 int max(int a,int b){
 	if(a>b)
 		return(a);
@@ -65,13 +49,16 @@ int min(int a,int b){
  
 int lineCounter(char *filePath){
 	FILE *f = fopen(filePath, "r"); 
+	int totalLines=0;
+	char ch;
+
 	if(f==NULL)
 		return(0);
-	int totalLines=0;
-	char c;
-	for(c=getc(f);c!=EOF;c=getc(f))
-        	if (c == '\n') 
+
+	for(ch=getc(f);ch!=EOF;ch=getc(f))
+        	if (ch == '\n') 
             		totalLines++;
+
 	fclose(f);
 	return(totalLines);
 }
@@ -84,6 +71,7 @@ char **toLines(char *content, int lineWidth , int *noOfLines){
 	int iPrevSpace = 0;
 
 	nlPos[0]=-1; 				
+
 	for(i = 0;i<iMax;i++){
 	/*populates array with the final space 
 	 * character that fits on the line*/
@@ -98,18 +86,22 @@ char **toLines(char *content, int lineWidth , int *noOfLines){
 			iPrevSpace = i;
 		}
 	}	
+
 	if(i-iPrevNewLine>=lineWidth){
 		/*catch the last line in case needed (could be mid word)*/
 		nlPos[il] = iPrevSpace; 
 		il++;
 	}
+
 	/*il gives number of lines, nlPos[i<il] gives end of line positions*/ 
+
 	*noOfLines = il; 
 	/*function assigns the number of lines to the pointer*/
-	nlPos[*noOfLines]=iMax; /*an extra new line at the end of the content*/
+	nlPos[*noOfLines]=iMax; 
+	/*an extra new line at the end of the content*/
 
 
-	//Now to populate the appropriate pointers with the lines
+	//to populate the appropriate pointers with the lines
 	size_t lineSize = (lineWidth+1)*sizeof(char);
 	char *ptr = calloc((*noOfLines)*lineSize,sizeof(char));
 	/*Allocate whole array*/
@@ -122,9 +114,10 @@ char **toLines(char *content, int lineWidth , int *noOfLines){
 		/*copies line to row*/
 			*(ptr+i+il*lineSize) = content[i+nlPos[il]+1];
 		}
-		ptr[il*lineSize+nlPos[lc+1]-nlPos[lc]]='\0';
+		ptr[il*lineSize+nlPos[il+1]-nlPos[il]]='\0';
 		*(ptrArray+il) = ptr+il*lineSize;
 	}
+
 	free(nlPos);
 	return(ptrArray);
 }
@@ -134,15 +127,15 @@ char *joinStrings(char *str1,char *str2){
 	size_t strSize, str1Size;
 	int i;
 
-	str1Size = strlen(string_1);
+	str1Size = strlen(str1);
 	strSize = str1Size+strlen(str2);
 
 	str = (char *)malloc((strSize+1)*sizeof(char));
 
-	for(i=0;i<str1Size;i++){
+	for(i=0;i<(int)str1Size;i++){
 		*(str + i)= *(str1+i);
 	}
-	for(i=str1Size;i<strSize;i++){
+	for(i=str1Size;i<(int)strSize;i++){
 		*(str + i)= *(str2+i-str1Size);
 	}
 	*(str+strSize)='\0';
@@ -150,9 +143,7 @@ char *joinStrings(char *str1,char *str2){
 	return(str);
 }
 
-char **commaSplit(char *str, int *height, int width){
-
-
+char **commaSplit(char *str, int *height, int maxWidth){
 	char **ptrArray, *ptr;
 	char ch;
 	int i = 1, ic=1; /*ic counts number of strings between commas*/
@@ -163,7 +154,7 @@ char **commaSplit(char *str, int *height, int width){
 	int strLength;	
 
 	strcpy(buf,str);
- 	ch = buf[0]
+ 	ch = buf[0];
 	buf[strlen(str)]='\0';
 
 	while(ch){			/*count the number of commas to */
@@ -174,20 +165,20 @@ char **commaSplit(char *str, int *height, int width){
 	}
 
 	ptrArray = malloc(sizeof(char *)*ic) ;
-	ptr = calloc(ic*width,sizeof(char));
+	ptr = calloc(ic*maxWidth,sizeof(char));
 
 	tok = strtok(buf,delim);
 
 	for(i=0;i<ic;i++){
-		strLength = min(strlen(tok),width);
-		strncpy(ptr+i*width,tok,strLength);
-		*(ptr+i*(width)+strLength)='\0';
-		*(ptrArray+i) = ptr+i*(width);
+		strLength = min(strlen(tok),maxWidth);
+		strncpy(ptr+i*maxWidth,tok,strLength);
+		*(ptr+i*(maxWidth)+strLength)='\0';
+		*(ptrArray+i) = ptr+i*(maxWidth);
 		tok = strtok(NULL,delim);
 	}
 
 	*height = ic;
-	free(authBuf);
+	free(buf);
 	return(ptrArray);
 }
 
