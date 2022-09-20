@@ -49,6 +49,16 @@ Development tools for python 3.10 are also needed. In particular, the header fil
 is needed to successfully compile the program. Installation depends on distribution e.g.(Debian/Ubuntu)
 
 	sudo apt-get install python3-dev
+	
+##### Pip
+To install pip, it may be necessary (Debian/Ubuntu) to add the universe repository
+
+	sudo add-apt-repository universe
+	sudo apt update
+	
+and then install using
+
+	sudo apt-get install python3-pip
 
 ##### Libraries
 To install libraries it is easiest to use pip. After installing pip (python3-pip package) the three
