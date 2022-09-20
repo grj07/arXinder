@@ -27,7 +27,7 @@ easy to install using e.g. (Debian/Ubuntu)
 
 #### ncurses
 Specifically needed are the development libraries for ncurses. For some distributions these
-are included in the ncurses package e.g. (Arch Linux)
+are included in the ncurses package e.g. (Arch):
 
 	sudo pacman -S ncurses
 
