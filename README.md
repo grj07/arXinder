@@ -8,10 +8,10 @@ Version 0.1
 ### Dependencies:
 Building and running arXinder require the following to be installed on the users system:
 
-	gcc , make
-	ncurses (development libraries/headers)
-	jansson (development libraries/headers)
-	python 3.10 (development libraries/headers)
+-gcc , make
+-ncurses (development libraries/headers)
+-jansson (development libraries/headers)
+-python 3.10 (development libraries/headers)
 
 Furthermore, the following python libraries are needed (also listed in requirements.txt):
 
