@@ -62,19 +62,13 @@ to build the program move into the application folder and run:
 	make
 
 ## Run 
-To run the program navigate to the directory containing the file
-
-	arXinder
-
-run the program in a large-enough virtual terminal using 
+To run the program ensure that your virtual terminal is large enough (50x20) and run using 
 
 	./arXinder
+Upon program exit an html file "chosen_entries.html" with your selections will be generated in the application 
+directory. Open it with your favourite web browser, e.g.
 
-view list of chosen papers by opening 
-
-	chosen_entries.html
-
-using a web browser.
+	firefox chosen_entries.html
 
 ## Structure
 
