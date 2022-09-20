@@ -95,7 +95,7 @@ WINDOW *bTWin(char *title, int height, int width, int yPos,int xPos){
 	win = newwin(height,width,yPos,xPos);
 	wbkgd(win,COLOR_PAIR(3));
 	box(win, 0 , 0);		
-	mvwprintw(win,1,width/2-strlen(title)/2,title);
+	mvwaddstr(win,1,width/2-strlen(title)/2,title);
 	return win;
 }
  

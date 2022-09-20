@@ -77,7 +77,7 @@ void updateSubs(int subjectNo,char *subjectArray[],int noOfSubjects){
 	move(2,20); /*print the current subject in boldface*/
 	clearText(xPos);
 	attron(A_BOLD);
-	mvprintw(2,20,subjectArray[subjectNo]);
+	mvaddstr(2,20,subjectArray[subjectNo]);
 	attroff(A_BOLD);
 
 	xPos = strlen(subjectArray[subjectNo])+5;
@@ -85,7 +85,7 @@ void updateSubs(int subjectNo,char *subjectArray[],int noOfSubjects){
 	for(i=subjectNo+1;i<noOfSubjects+subjectNo;i++){
 	/*prints subject array across top of screen*/
 		iMod = i % noOfSubjects;
-		mvprintw(2,20+xPos,subjectArray[iMod]);
+		mvaddstr(2,20+xPos,subjectArray[iMod]);
 		xPos = xPos + max(strlen(subjectArray[iMod])+5,0);
 	}
 }
