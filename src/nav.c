@@ -116,7 +116,9 @@ entries_header *fetchHeader(char *filePath){
 	fp = fopen(filePath,"r");
 
 	getline(&lineBuf, &lineSize, fp);
+
 	json_t *root = json_loads(lineBuf,0,&error);
+
 	jTemp = json_object_get(root, "subject");
 	strcpy(head->subject,(char*) json_string_value(jTemp));
 	jTemp = json_object_get(root, "raw_no_of_entries");
@@ -130,9 +132,10 @@ entries_header *fetchHeader(char *filePath){
 	jTemp = json_object_get(root, "filtered_no_of_entries");
 	head->filteredNoOfEntries = (int) json_integer_value(jTemp);
 
-	json_decref(root);
+
 	fclose(fp);
-	free(jTemp);
+
+	json_decref(root);
 	free(lineBuf);
 	return(head);
 }

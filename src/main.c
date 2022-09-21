@@ -171,7 +171,6 @@ void runArXinder(int colours, int* subNo){
 	char* subjectArray[noOfSubjects];
 	char* lineBuf=NULL;
 	size_t lineBufSize;
-	ssize_t lineSize;
 
 	FILE* subFile;
 	FILE* resFile;
@@ -191,18 +190,14 @@ void runArXinder(int colours, int* subNo){
 	
 	//Subjects in an array to be loaded into array of strings
 	subFile= fopen(SUBJECTS_FILE,"r");
-	lineSize = getline(&lineBuf,&lineBufSize,subFile);
-	subjectArray[i] = malloc((strlen(lineBuf))*sizeof(char));
-	strncpy(subjectArray[i],lineBuf,strlen(lineBuf)-1);
-	*(subjectArray[i]+strlen(lineBuf)-1)='\0';
 
-	while(lineSize>=0){
-		i++;
-		lineSize = getline(&lineBuf,&lineBufSize,subFile);	
+	for(i=0;i<noOfSubjects;i++){
+		getline(&lineBuf,&lineBufSize,subFile);
 		subjectArray[i] = malloc((strlen(lineBuf))*sizeof(char));
 		strncpy(subjectArray[i],lineBuf,strlen(lineBuf)-1);
 		*(subjectArray[i]+strlen(lineBuf)-1)='\0';
 	}
+
 	free(lineBuf);
 	fclose(subFile);
 
@@ -250,7 +245,7 @@ void runArXinder(int colours, int* subNo){
 		}
 		sub = subjectArray[*subNo];
 
-		updateSubs(*subNo,subjectArray ,noOfSubjects);
+		updateSubs(*subNo, subjectArray, noOfSubjects);
 		
 		acc =access(sub,F_OK); 
 		/*access returns 0 if the file can be accessed*/
@@ -302,7 +297,7 @@ void runArXinder(int colours, int* subNo){
 /**                     MAIN FUNCTION                                      **/
 /**                                                                        **/
 /****************************************************************************/ 
-int main(){
+int main(void){
 	int i, re;
 	bool colour = 0;
 	int subNo;
