@@ -190,11 +190,12 @@ bool subjectMenu() {
 	mWin=bTWin("Subject Settings",LINES-5,COLS-4,5,2);
 	wbkgd(mWin,COLOR_PAIR(2));
 	mvwaddstr(mWin,1,COLS-25,C_INSTRUCTIONS);
+	mvwaddstr(mWin,2,COLS-25,Q_INSTRUCTIONS);
 	wrefresh(mWin);
 	wbkgd(mWin,COLOR_PAIR(4));
 
 	catWin = derwin(mWin,9,45,2,1); /*categories*/
-	subWin = derwin(mWin,LINES-8,COLS-60,2,48);/*subjects*/
+	subWin = derwin(mWin,LINES-9,COLS-60,3,48);/*subjects*/
 	choicesWin = derwin(mWin,LINES-20,45,14,1);/*chosen subjects*/
 
 	chosenSubjects(choicesWin,0);

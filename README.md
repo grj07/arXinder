@@ -71,8 +71,17 @@ to build the program move into the application folder and run:
 
 	make
 
+### Debian/Ubuntu
+In summary the commands necessary to build arXinder in Debian/Ubuntu are:
+
+	sudo add-apt-repository universe
+	sudo apt update
+	sudo apt-get install gcc libncurses5-dev libncursesw5-dev libjansson-dev python3-dev python3-pip
+	pip install feedparser holidays pytz
+	make
+ 
 ## Run 
-To run the program ensure that your virtual terminal is large enough (50x20) and run using 
+To run the program ensure that your virtual terminal is large enough (minimum 114x30) and run using 
 
 	./arXinder
 Upon program exit an html file "chosen_entries.html" with your selections will be generated in the application 

@@ -46,7 +46,7 @@ Description : Original version.  Subjects can be selected through the menu
 #define SUBJ_PATH "state/subjects/"
 
 #define C_INSTRUCTIONS "c - clear subjects"
- 
+#define Q_INSTRUCTIONS "q - quit menu "
 /****************************************************************************/ 
 /**                                                                        **/ 
 /**                     TYPEDEFS AND STRUCTURES                            **/ 
