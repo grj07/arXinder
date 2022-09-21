@@ -130,6 +130,7 @@ entries_header *fetchHeader(char *filePath){
 	jTemp = json_object_get(root, "filtered_no_of_entries");
 	head->filteredNoOfEntries = (int) json_integer_value(jTemp);
 
+	json_decref(root);
 	fclose(fp);
 	free(jTemp);
 	free(lineBuf);

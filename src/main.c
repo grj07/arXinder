@@ -195,6 +195,7 @@ void runArXinder(int colours, int* subNo){
 	subjectArray[i] = malloc((strlen(lineBuf))*sizeof(char));
 	strncpy(subjectArray[i],lineBuf,strlen(lineBuf)-1);
 	*(subjectArray[i]+strlen(lineBuf)-1)='\0';
+
 	while(lineSize>=0){
 		i++;
 		lineSize = getline(&lineBuf,&lineBufSize,subFile);	
@@ -202,6 +203,7 @@ void runArXinder(int colours, int* subNo){
 		strncpy(subjectArray[i],lineBuf,strlen(lineBuf)-1);
 		*(subjectArray[i]+strlen(lineBuf)-1)='\0';
 	}
+	free(lineBuf);
 	fclose(subFile);
 
 
@@ -281,6 +283,8 @@ void runArXinder(int colours, int* subNo){
 	}while(input!='q');
 
 
+	free(args);
+
 	for(i=0;i<noOfSubjects;i++){
 		free(subjectArray[i]);
 	}
@@ -300,7 +304,7 @@ void runArXinder(int colours, int* subNo){
 /****************************************************************************/ 
 int main(){
 	int i, re;
-	bool colour;
+	bool colour = 0;
 	int subNo;
 
 	FILE *fp;
@@ -340,9 +344,9 @@ int main(){
 	if(COLS<MIN_COLS||LINES<MIN_LINES)
 		bomb("Terminal too small, please use a larger terminal");
 
-	colour = 0; /*colour=0 is black and white mode*/
  	/*colours can be turned on by uncommenting*/
 	//colour = colours(); 
+
 
 	//Keypad on, noecho to avoid mishaps and cursor off
 	keypad(stdscr, TRUE);		
@@ -353,8 +357,8 @@ int main(){
 	if(!re){
 	/*run title screen and get entries in parallel*/
 		pthread_t threads[NTHREADS];
-		pthread_create(&threads[0], NULL, runPyScript,GE_SCRIPT);
-		pthread_create(&threads[1], NULL, titleScreen,&colour);
+		pthread_create(&threads[0], NULL, runPyScript, GE_SCRIPT);
+		pthread_create(&threads[1], NULL, titleScreen, &colour);
 		
 		/* wait for threads to finish*/
 		for (i=0; i<NTHREADS; i++){
