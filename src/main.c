@@ -218,8 +218,12 @@ void runArXinder(int colours, int* subNo){
 	chSub = 0;
 	do{
 		if(input == 's'){
-			if(subjectMenu()) 	
+			if(subjectMenu()){
+				resFile= fopen(RESUME_FILE,"w");
+				fprintf(resFile,"%d %d", 0, 0);
+				fclose(resFile);
 				bomb(RESTART_INST);
+			}
 		}
 		//Need to reload subjects if they change.
 		if(!lineCounter(SUBJECTS_FILE)) {
