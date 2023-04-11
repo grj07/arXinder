@@ -1,4 +1,6 @@
 state/p_feeds/.empt
+state/p_feeds/*
+TODO.md
 workshop/
 chosen_entries.html
 arXinder
