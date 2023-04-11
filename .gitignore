@@ -1,6 +1,8 @@
 state/p_feeds/.empt
+state/p_feeds/*
 workshop/
 chosen_entries.html
 arXinder
 arx0.1
 arx0.1.tar
+TODO.md
